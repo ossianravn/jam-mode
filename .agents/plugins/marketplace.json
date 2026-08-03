@@ -1,0 +1,20 @@
+{
+  "name": "jam-mode-local",
+  "interface": {
+    "displayName": "JAM Mode Local"
+  },
+  "plugins": [
+    {
+      "name": "jam-mode",
+      "source": {
+        "source": "local",
+        "path": "./plugins/jam-mode"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

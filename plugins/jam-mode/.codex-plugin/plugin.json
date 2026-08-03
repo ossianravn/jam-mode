@@ -1,0 +1,37 @@
+{
+  "name": "jam-mode",
+  "version": "0.3.0",
+  "description": "Run bounded, adaptive Codex campaigns with validated per-role model and reasoning routing across fresh sessions.",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "orchestration",
+    "workflow",
+    "multi-agent",
+    "automation"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "JAM Mode",
+    "shortDescription": "Adaptive campaigns with model routing",
+    "longDescription": "JAM Mode maintains a durable objective across naturally ending Codex sessions. Each fresh episode reviews prior transcripts, structured state, and relevant memories; selects a task profile and the smallest useful solo or multi-agent strategy; routes named child roles to configurable models and reasoning efforts validated against the installed Codex model catalog; records a task-neutral handoff; and starts another session only when operating boundaries, user state, progress, expected value, and budgets permit it.",
+    "developerName": "JAM Mode Contributors",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Persistent cross-session campaigns",
+      "Adaptive task profiles and named-agent strategies",
+      "Per-role model and reasoning-effort routing",
+      "Installed model-catalog validation",
+      "Structured handoffs and continuation gates"
+    ],
+    "defaultPrompt": [
+      "Start an adaptive JAM campaign for this workspace using the balanced model-routing policy.",
+      "Configure JAM model routing and show the resolved named-agent roster.",
+      "Show the status and model activity of my active JAM campaign."
+    ]
+  },
+  "author": {
+    "name": "JAM Mode Contributors"
+  }
+}

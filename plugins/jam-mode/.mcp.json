@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "jam_mode": {
+      "command": "python3",
+      "args": [
+        "mcp/jam_mcp.py"
+      ],
+      "cwd": "."
+    }
+  }
+}
