@@ -12,8 +12,11 @@ if (Test-Path $MarketplaceNameFile) {
 }
 $Codex = Get-Command codex -ErrorAction SilentlyContinue
 if ($Codex) {
-    & $Codex.Source plugin remove jam-mode -m $MarketplaceName --json *> $null
-    & $Codex.Source plugin marketplace remove $MarketplaceName --json *> $null
+    $PluginHelp = (& $Codex.Source plugin --help 2>&1 | Out-String)
+    if ($PluginHelp -match "(?m)^\s+remove(?:\s|$)") {
+        & $Codex.Source plugin remove jam-mode -m $MarketplaceName *> $null
+    }
+    & $Codex.Source plugin marketplace remove $MarketplaceName *> $null
 }
 $AgentsDirectory = Join-Path $CodexHome "agents"
 if (Test-Path $AgentsDirectory) {

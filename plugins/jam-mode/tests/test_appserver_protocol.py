@@ -47,6 +47,65 @@ class AppServerProtocolTests(unittest.TestCase):
         self.assertEqual(calls[0][1]["includeHidden"], True)
         self.assertEqual(calls[1][1]["cursor"], "next")
 
+    def _turn_start_params(self, sandbox: str, *, allow_network: bool) -> dict:
+        client = object.__new__(AppServerClient)
+        client._pending_notifications = [
+            {
+                "method": "turn/completed",
+                "params": {"turn": {"id": "turn-1", "status": "completed"}},
+            }
+        ]
+        calls: list[tuple[str, dict]] = []
+
+        def request(method: str, params: dict, timeout: float = 0) -> dict:
+            calls.append((method, dict(params)))
+            return {"turn": {"id": "turn-1", "status": "inProgress"}}
+
+        client.request = request  # type: ignore[method-assign]
+        client.run_turn(
+            thread_id="thread-1",
+            prompt="Stay inside the workspace.",
+            cwd="C:\\bounded-workspace",
+            model=None,
+            effort=None,
+            sandbox=sandbox,
+            allow_network=allow_network,
+            timeout_seconds=5,
+        )
+        self.assertEqual(calls[0][0], "turn/start")
+        return calls[0][1]
+
+    def test_workspace_write_restricts_reads_to_workspace(self) -> None:
+        params = self._turn_start_params("workspace-write", allow_network=False)
+        self.assertEqual(
+            params["sandboxPolicy"],
+            {
+                "type": "workspaceWrite",
+                "writableRoots": ["C:\\bounded-workspace"],
+                "readOnlyAccess": {
+                    "type": "restricted",
+                    "readableRoots": ["C:\\bounded-workspace"],
+                    "includePlatformDefaults": True,
+                },
+                "networkAccess": False,
+            },
+        )
+
+    def test_read_only_restricts_reads_to_workspace(self) -> None:
+        params = self._turn_start_params("read-only", allow_network=True)
+        self.assertEqual(
+            params["sandboxPolicy"],
+            {
+                "type": "readOnly",
+                "access": {
+                    "type": "restricted",
+                    "readableRoots": ["C:\\bounded-workspace"],
+                    "includePlatformDefaults": True,
+                },
+                "networkAccess": True,
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

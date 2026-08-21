@@ -9,8 +9,11 @@ if [[ -f "$DEST_ROOT/.jam-marketplace-name" ]]; then
 fi
 
 if command -v codex >/dev/null 2>&1; then
-  codex plugin remove jam-mode -m "$MARKETPLACE_NAME" --json >/dev/null 2>&1 || true
-  codex plugin marketplace remove "$MARKETPLACE_NAME" --json >/dev/null 2>&1 || true
+  plugin_help="$(codex plugin --help 2>&1)"
+  if grep -Eq '^[[:space:]]+remove([[:space:]]|$)' <<<"$plugin_help"; then
+    codex plugin remove jam-mode -m "$MARKETPLACE_NAME" >/dev/null 2>&1 || true
+  fi
+  codex plugin marketplace remove "$MARKETPLACE_NAME" >/dev/null 2>&1 || true
 fi
 if [[ -d "$DEST_ROOT/plugins/jam-mode" ]] && command -v python3 >/dev/null 2>&1; then
   CODEX_HOME="$CODEX_HOME_EFFECTIVE" PYTHONPATH="$DEST_ROOT/plugins/jam-mode" python3 - <<'PY' || true

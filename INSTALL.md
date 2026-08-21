@@ -38,12 +38,17 @@ The installer:
 
 - copies the marketplace to `$CODEX_HOME/jam-mode-marketplace` unless overridden;
 - rewrites the bundled MCP launcher with absolute host paths;
-- registers and installs the local Codex plugin;
+- registers the local Codex marketplace;
 - creates `~/.local/bin/jam` unless overridden;
 - creates `$CODEX_HOME/jam-mode/config.toml` when absent;
 - materializes marker-owned custom agents under `$CODEX_HOME/agents/jam_*.toml`.
 
 Installation does not require a live model-catalog request. Campaign start and resume validate the requested roster against the current account through Codex App Server unless validation is disabled.
+
+Current Codex releases manage first-time plugin activation in the app. After the
+installer finishes, open **Settings > Plugins** and install JAM Mode, or choose
+**Refresh** when it is already installed. Older Codex CLIs that expose
+`codex plugin add` are activated directly by the installer.
 
 ## Native Windows
 
@@ -136,6 +141,10 @@ cp -a "$CODEX_HOME/jam-mode" "$CODEX_HOME/jam-mode.backup"
 ```
 
 Run the 0.3 installer from the newly extracted release. Do not delete `$CODEX_HOME/jam-mode`.
+On native Windows, close Codex Desktop and any running JAM controller before
+upgrading so Windows can replace the marketplace directory atomically. If the
+directory is locked, the installer restores the existing package and exits
+without completing the upgrade.
 
 WSL/Linux:
 
@@ -149,7 +158,7 @@ Native Windows:
 .\plugins\jam-mode\scripts\install-windows.ps1
 ```
 
-The installer refreshes the plugin source and Codex plugin cache while preserving campaign data and existing routing settings. On first use, JAM migrates the SQLite database in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 campaigns receive the 0.3 routing and telemetry columns.
+The installer refreshes the plugin source while preserving campaign data and existing routing settings. In current Codex releases, choose **Refresh** for JAM Mode under **Settings > Plugins** afterward so Codex rebuilds its plugin cache. On first use, JAM migrates the SQLite database in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 campaigns receive the 0.3 routing and telemetry columns.
 
 Restart Codex Desktop and begin a new Desktop/CLI conversation after the upgrade.
 

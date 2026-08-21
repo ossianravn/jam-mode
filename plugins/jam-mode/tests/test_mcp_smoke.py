@@ -152,6 +152,14 @@ class McpSmokeTests(unittest.TestCase):
             configure = tools["jam_configure_model_routing"]["inputSchema"]["properties"]
             self.assertIn("campaign_id", configure)
             self.assertIn("reset", configure)
+            self.assertNotIn(
+                "parent",
+                configure["role_models"]["properties"],
+            )
+            self.assertNotIn(
+                "parent",
+                configure["role_efforts"]["properties"],
+            )
             refresh = tools["jam_refresh_campaign_routing"]["inputSchema"]
             self.assertIn("campaign_id", refresh["required"])
 

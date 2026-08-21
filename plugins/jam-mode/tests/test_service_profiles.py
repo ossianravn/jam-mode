@@ -104,9 +104,7 @@ class ServiceProfileTests(unittest.TestCase):
                         "sandbox": "read-only",
                     }
                 )
-                campaign = store.update_campaign(
-                    campaign["id"], enabled=False, status="paused"
-                )
+                campaign = store.transition_campaign(campaign["id"], "paused")
                 result = configure_model_routing(
                     campaign["id"],
                     model_policy="custom",
@@ -123,9 +121,7 @@ class ServiceProfileTests(unittest.TestCase):
                     result["campaign"]["resolved_routing"]["roles"]["reviewer"]["model"],
                     "review-model",
                 )
-                store.update_campaign(
-                    campaign["id"], enabled=True, status="running"
-                )
+                store.transition_campaign(campaign["id"], "queued")
                 with self.assertRaisesRegex(StoreError, "Pause the campaign"):
                     configure_model_routing(
                         campaign["id"],
@@ -133,9 +129,7 @@ class ServiceProfileTests(unittest.TestCase):
                         validate=False,
                     )
 
-                store.update_campaign(
-                    campaign["id"], enabled=False, status="paused"
-                )
+                store.transition_campaign(campaign["id"], "paused")
                 other = store.create_campaign(
                     {
                         "id": "other-live-campaign",

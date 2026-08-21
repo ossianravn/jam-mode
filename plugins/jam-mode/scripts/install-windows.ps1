@@ -33,6 +33,10 @@ if ($Py) {
 
 $SourceFull = [System.IO.Path]::GetFullPath($SourceRoot).TrimEnd('\')
 $DestFull = [System.IO.Path]::GetFullPath($Destination).TrimEnd('\')
+$NestedPrefix = $SourceFull + [System.IO.Path]::DirectorySeparatorChar
+if ($DestFull.StartsWith($NestedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "The install destination must not be inside the marketplace source directory."
+}
 if ($SourceFull -ne $DestFull) {
     $Stage = "$Destination.stage.$PID"
     $Old = "$Destination.old.$PID"
@@ -50,7 +54,27 @@ if ($SourceFull -ne $DestFull) {
     Get-ChildItem -LiteralPath $Stage -File -Recurse -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.Extension -in @(".pyc", ".pyo") } |
         Remove-Item -Force -ErrorAction SilentlyContinue
-    if (Test-Path $Destination) { Move-Item $Destination $Old }
+    if (Test-Path $Destination) {
+        try {
+            Move-Item $Destination $Old -ErrorAction Stop
+        } catch {
+            $MoveFailure = $_.Exception.Message
+            try {
+                if (Test-Path $Old) {
+                    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+                    Get-ChildItem -LiteralPath $Old -Force |
+                        ForEach-Object {
+                            Copy-Item -LiteralPath $_.FullName -Destination $Destination -Recurse -Force
+                        }
+                    Remove-Item $Old -Recurse -Force
+                }
+                Remove-Item $Stage -Recurse -Force
+            } catch {
+                throw "Could not replace the active JAM installation and rollback was incomplete. Preserve '$Old' and restore it to '$Destination' after closing Codex. Move failure: $MoveFailure. Rollback failure: $($_.Exception.Message)"
+            }
+            throw "Could not replace the active JAM installation. The existing installation was restored. Close Codex Desktop and any JAM processes, then rerun the installer. Move failure: $MoveFailure"
+        }
+    }
     Move-Item $Stage $Destination
     Remove-Item $Old -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -77,7 +101,7 @@ $RoutingCode = @'
 from jam.routing import ensure_managed_agents, load_routing_config, requested_routing_from_config, resolve_routing
 config = load_routing_config(create=True)
 requested = requested_routing_from_config(config)
-requested["validation"] = "off"
+requested['validation'] = 'off'
 resolved = resolve_routing(requested, catalog_entries=[])
 ensure_managed_agents(resolved)
 '@
@@ -93,27 +117,37 @@ try {
     $env:CODEX_HOME = $OldCodexHome
 }
 
-$MarketRaw = & $Codex.Source plugin marketplace add $Destination --json
+$MarketplaceManifest = Get-Content -LiteralPath (Join-Path $Destination ".agents\plugins\marketplace.json") -Raw |
+    ConvertFrom-Json
+$MarketName = $MarketplaceManifest.name
+if (-not $MarketName) { throw "The marketplace manifest must declare a name." }
+
+$PluginHelp = (& $Codex.Source plugin --help 2>&1 | Out-String)
+$SupportsPluginInstall = $PluginHelp -match "(?m)^\s+add(?:\s|$)"
+
+& $Codex.Source plugin marketplace add $Destination *> $null
 if ($LASTEXITCODE -ne 0) { throw "Could not add the JAM local marketplace." }
-$Market = $MarketRaw | ConvertFrom-Json
-$MarketName = if ($Market.marketplaceName) { $Market.marketplaceName } else { "jam-mode-local" }
 
 [System.IO.File]::WriteAllText((Join-Path $Destination ".jam-marketplace-name"), $MarketName + [Environment]::NewLine, $Utf8NoBom)
 
-& $Codex.Source plugin add jam-mode -m $MarketName --json *> $null
-if ($LASTEXITCODE -ne 0) {
-    & $Codex.Source plugin remove jam-mode -m $MarketName --json *> $null
-    & $Codex.Source plugin add jam-mode -m $MarketName --json *> $null
-    if ($LASTEXITCODE -ne 0) { throw "Could not install the JAM plugin from marketplace $MarketName." }
+if ($SupportsPluginInstall) {
+    & $Codex.Source plugin add jam-mode -m $MarketName *> $null
+    if ($LASTEXITCODE -ne 0) {
+        & $Codex.Source plugin remove jam-mode -m $MarketName *> $null
+        & $Codex.Source plugin add jam-mode -m $MarketName *> $null
+        if ($LASTEXITCODE -ne 0) { throw "Could not install the JAM plugin from marketplace $MarketName." }
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $BinDirectory | Out-Null
 $JamCmd = Join-Path $BinDirectory "jam.cmd"
 $Prefix = if ($PythonPrefixArgs.Count -gt 0) { " -3" } else { "" }
-@"
+$JamCmdContent = @"
 @echo off
+set "PYTHONUTF8=1"
 "$PythonCommand"$Prefix "$PluginRoot\scripts\jam.py" %*
-"@ | Set-Content -Encoding ASCII $JamCmd
+"@
+[System.IO.File]::WriteAllText($JamCmd, $JamCmdContent, $Utf8NoBom)
 
 Write-Host ""
 Write-Host "JAM Mode installed."
@@ -122,6 +156,9 @@ Write-Host "Plugin source: $PluginRoot"
 Write-Host "Companion command: $JamCmd"
 Write-Host "State and routing config: $(Join-Path $CodexHome 'jam-mode')"
 Write-Host "Managed agents: $(Join-Path $CodexHome 'agents\jam_*.toml')"
+if (-not $SupportsPluginInstall) {
+    Write-Host "Plugin activation: install or Refresh JAM Mode under Codex Settings > Plugins."
+}
 Write-Host ""
 Write-Host "Restart Codex Desktop and start a new Desktop/CLI conversation before using the plugin."
 Write-Host "Add $BinDirectory to PATH to call 'jam' from any terminal."

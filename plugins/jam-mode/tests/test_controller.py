@@ -3,16 +3,17 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from jam import controller
+from jam.campaign_runner import _record_campaign_failure
 from jam.controller import continuation_decision, next_episode_plan
 from jam.store import Store
 
 
 def base_campaign() -> dict:
     return {
-        "enabled": True,
-        "stop_after_current": False,
-        "termination_requested": False,
+        "status": "running",
         "low_progress_count": 0,
         "max_low_progress": 2,
         "continuation_threshold": 0.55,
@@ -63,14 +64,52 @@ def base_handoff() -> dict:
 
 
 class ContinuationGateTests(unittest.TestCase):
+    def test_failure_cleanup_finalizes_derived_active_episode(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            store = Store(root / "jam.db")
+            campaign = store.create_campaign(
+                {
+                    "id": "failure-campaign",
+                    "name": "Failure",
+                    "objective": "Exercise failure cleanup.",
+                    "workspace": str(workspace),
+                    "operating_boundaries": {"resources": [str(workspace)]},
+                }
+            )
+            episode = store.create_episode(
+                campaign["id"], objective="Fail", strategy_hint="solo"
+            )
+            with patch("jam.campaign_runner._write_campaign_summary"):
+                cleanup_error = _record_campaign_failure(
+                    store, campaign["id"], "ValueError: boom"
+                )
+            self.assertIsNone(cleanup_error)
+            self.assertEqual(store.get_episode(episode["id"])["status"], "error")
+            failed = store.get_campaign(campaign["id"])
+            self.assertIsNone(failed["active_episode_id"])
+            self.assertEqual(failed["status"], "error")
+
+    def test_turn_timeout_is_capped_by_remaining_campaign_budget(self) -> None:
+        campaign = base_campaign()
+        campaign["max_elapsed_minutes"] = 2
+        with patch("jam.controller_decisions._elapsed_minutes", return_value=1.5):
+            self.assertEqual(controller._turn_timeout_seconds(campaign), 30)
+
+        campaign["max_elapsed_minutes"] = 600
+        with patch("jam.controller_decisions._elapsed_minutes", return_value=0):
+            self.assertEqual(controller._turn_timeout_seconds(campaign), 4 * 60 * 60)
+
     def test_user_state_precedes_continuation(self) -> None:
         campaign = base_campaign()
-        campaign["enabled"] = False
+        campaign["status"] = "pausing_after_current"
         decision = continuation_decision(campaign, base_handoff(), turn_status="completed")
         self.assertEqual(decision[1], "paused")
 
         campaign = base_campaign()
-        campaign["termination_requested"] = True
+        campaign["status"] = "stopping_after_current"
         decision = continuation_decision(campaign, base_handoff(), turn_status="completed")
         self.assertEqual(decision[1], "stopped")
 

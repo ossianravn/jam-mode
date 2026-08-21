@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -71,7 +72,7 @@ class ControllerIntegrationTests(unittest.TestCase):
             fake_bin = root / "bin"
             workspace.mkdir()
             fake_bin.mkdir()
-            fake_codex = fake_bin / "codex"
+            fake_codex = fake_bin / ("fake_codex.py" if os.name == "nt" else "codex")
             payload_literal = repr(json.dumps(FAKE_HANDOFF))
             fake_codex.write_text(
                 textwrap.dedent(
@@ -175,7 +176,13 @@ class ControllerIntegrationTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            fake_codex.chmod(fake_codex.stat().st_mode | stat.S_IXUSR)
+            if os.name == "nt":
+                (fake_bin / "codex.cmd").write_text(
+                    f'@"{sys.executable}" "%~dp0fake_codex.py" %*\n',
+                    encoding="utf-8",
+                )
+            else:
+                fake_codex.chmod(fake_codex.stat().st_mode | stat.S_IXUSR)
 
             env = {
                 "CODEX_HOME": str(codex_home),

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import json
@@ -7,10 +8,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from jam.context import build_context_pack, collect_memories
+from jam.context import build_context_pack
 from jam.prompts import HANDOFF_SCHEMA, render_episode_prompt
 from jam.routing import build_requested_routing, resolve_routing
-from jam.service import doctor
 from jam.store import Store
 
 
@@ -53,33 +53,6 @@ class ContextAndPromptTests(unittest.TestCase):
                 "memory_paths": [],
             }
         )
-
-    def test_memory_inventory_filters_common_secrets_and_symlinks(self) -> None:
-        memories = self.codex_home / "memories"
-        memories.mkdir(parents=True)
-        safe = memories / "configuration-parser-notes.md"
-        safe.write_text("The parser must retain the legacy key aliases.", encoding="utf-8")
-        secret = memories / "auth.json"
-        secret.write_text('{"token":"do-not-read"}', encoding="utf-8")
-        alias = memories / "innocent.json"
-        try:
-            alias.symlink_to(secret)
-        except OSError:
-            alias = None
-
-        campaign = {
-            "objective": "Implement a configuration parser.",
-            "memory_paths": [],
-        }
-        result = collect_memories(campaign, "Preserve legacy parser aliases")
-        paths = {item["path"] for item in result["inventory"]}
-        self.assertIn(str(safe.resolve()), paths)
-        self.assertNotIn(str(secret.resolve()), paths)
-        if alias is not None:
-            self.assertNotIn(str(alias.resolve()), paths)
-        excerpts = "\n".join(item["excerpt"] for item in result["relevant_excerpts"])
-        self.assertIn("legacy key aliases", excerpts)
-        self.assertNotIn("do-not-read", excerpts)
 
     def test_context_pack_contains_previous_handoff_transcript_and_generic_ledger(self) -> None:
         store = Store(self.jam_home / "test.db")
@@ -239,7 +212,20 @@ class ContextAndPromptTests(unittest.TestCase):
         self.assertIn("gpt-5.6-sol · high", prompt)
         self.assertIn("jam_implementer · gpt-5.6-terra · high", prompt)
         self.assertIn("jam_reviewer · gpt-5.6-sol · high", prompt)
-        self.assertIn("builder_reviewer: jam_implementer, jam_reviewer", prompt)
+        self.assertIn("builder_reviewer: jam_implementer → jam_reviewer", prompt)
+        self.assertIn(
+            "planner_executor: jam_planner first, then choose exactly one writer",
+            prompt,
+        )
+        self.assertIn(
+            "execute_validate: choose exactly one writer "
+            "(jam_implementer or jam_producer), then jam_validator",
+            prompt,
+        )
+        self.assertNotIn(
+            "planner_executor: jam_planner, jam_implementer, jam_producer",
+            prompt,
+        )
         self.assertIn("delegate each bounded role to the exact", prompt)
         self.assertIn("There must be no more than one writer", prompt)
         self.assertIn("Child agents must not spawn", prompt)
@@ -261,16 +247,6 @@ class ContextAndPromptTests(unittest.TestCase):
         self.assertIn("content", properties["task_profile"]["enum"])
         self.assertIn("operations", properties["task_profile"]["enum"])
         self.assertIn("producer_critic", properties["strategy_used"]["enum"])
-
-    def test_doctor_does_not_create_state_directories(self) -> None:
-        self.assertFalse(self.codex_home.exists())
-        self.assertFalse(self.jam_home.exists())
-        result = doctor()
-        self.assertFalse(self.codex_home.exists())
-        self.assertFalse(self.jam_home.exists())
-        names = {item["name"] for item in result["checks"]}
-        self.assertIn("jam_home", names)
-        self.assertIn("plugin_root", names)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,11 @@
 - Persisted requested/resolved rosters, model catalog snapshots, routing warnings, collaboration activity, model events, and token usage.
 - Added episode artifacts `routing.json`, `agent-activity.json`, `model-events.json`, and `token-usage.json`.
 - Added in-place 0.3 database migration while preserving 0.1/0.2 campaign data and compatibility behavior.
+- Made episode rows authoritative for active-episode and episode-count state, with migration diagnostics and database-enforced single-active-episode admission.
+- Replaced independent lifecycle flags with one validated campaign status and a database-enforced single-live-campaign invariant; legacy flags remain derived read-only output.
+- Made explicit state IDs campaign-scoped current-state keys while keeping generated compatibility IDs episode-scoped and preserving latest-update ordering.
+- Made role override maps child-only so parent model and effort have one dedicated input path.
+- Made Windows upgrades restore the existing marketplace if an active Codex process prevents the atomic directory swap.
 - Updated WSL/Linux and native Windows installers and uninstallers to create/remove only JAM marker-owned agents.
 - Expanded automated coverage for model-list pagination, routing policies, effort fallback, Ultra gating, agent collision safety, and paused-campaign routing changes.
 

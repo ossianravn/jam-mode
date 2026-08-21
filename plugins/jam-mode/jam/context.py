@@ -1,160 +1,14 @@
 from __future__ import annotations
 
 import json
-import os
-import re
-import time
 from pathlib import Path
 from typing import Any
 
-from .handoff import normalize_handoff
-from .paths import codex_home_path
+from .handoff import normalize_handoff, public_handoff
+from .handoff_fields import GENERATED_ID_ORIGIN, STATE_ID_ORIGIN_FIELD
+from .memory import collect_memories
 from .store import Store
-from .util import json_dumps, normalize_paths, truncate_text
-
-_TEXT_SUFFIXES = {
-    ".md",
-    ".markdown",
-    ".txt",
-    ".json",
-    ".jsonl",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".rst",
-    ".csv",
-}
-_SKIP_NAMES = {
-    "auth.json",
-    "credentials.json",
-    "secrets.json",
-    ".env",
-    ".env.local",
-    "id_rsa",
-    "id_ed25519",
-}
-_SKIP_PARTS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
-
-
-def _terms(*values: str) -> set[str]:
-    words: set[str] = set()
-    for value in values:
-        for word in re.findall(r"[a-zA-Z0-9_\-]{3,}", value.lower()):
-            if word not in {
-                "the",
-                "and",
-                "for",
-                "with",
-                "from",
-                "that",
-                "this",
-                "into",
-                "then",
-                "should",
-                "campaign",
-            }:
-                words.add(word)
-    return words
-
-
-def _candidate_files(roots: list[str], *, max_files: int = 1000) -> list[Path]:
-    result: list[Path] = []
-    seen: set[str] = set()
-    for root_value in roots:
-        root = Path(root_value).expanduser()
-        if not root.exists():
-            continue
-        iterator = [root] if root.is_file() else root.rglob("*")
-        for path in iterator:
-            if len(result) >= max_files:
-                return result
-            try:
-                resolved_path = path.resolve()
-                if not resolved_path.is_file() or resolved_path.suffix.lower() not in _TEXT_SUFFIXES:
-                    continue
-                names = {path.name.lower(), resolved_path.name.lower()}
-                if any(
-                    name in _SKIP_NAMES or name.startswith(".env.")
-                    for name in names
-                ):
-                    continue
-                parts = {part.lower() for part in (*path.parts, *resolved_path.parts)}
-                if parts.intersection(_SKIP_PARTS):
-                    continue
-                resolved = str(resolved_path)
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                result.append(resolved_path)
-            except (OSError, PermissionError):
-                continue
-    return result
-
-
-def _safe_excerpt(path: Path, *, max_chars: int = 12000) -> str:
-    try:
-        if path.stat().st_size > 2_000_000:
-            return "[file omitted: larger than 2 MB]"
-        text = path.read_text(encoding="utf-8", errors="replace")
-        return truncate_text(text, max_chars)
-    except (OSError, PermissionError) as exc:
-        return f"[unreadable: {exc}]"
-
-
-def collect_memories(
-    campaign: dict[str, Any], current_objective: str, *, max_excerpt_chars: int = 42000
-) -> dict[str, Any]:
-    home = codex_home_path()
-    roots = normalize_paths(
-        [
-            home / "memories",
-            home / "memories_extensions" / "chronicle",
-            *(campaign.get("memory_paths") or []),
-        ]
-    )
-    files = _candidate_files(roots)
-    terms = _terms(campaign.get("objective", ""), current_objective)
-    inventory: list[dict[str, Any]] = []
-    scored: list[tuple[float, float, Path]] = []
-    for path in files:
-        try:
-            stat = path.stat()
-            relative_hint = str(path)
-            lower_name = relative_hint.lower()
-            lexical = sum(4.0 for term in terms if term in lower_name)
-            age_days = max(0.0, (time.time() - stat.st_mtime) / 86400.0)
-            recency = max(0.0, 2.0 - (age_days / 90.0))
-            # Filename relevance dominates. Recency only breaks ties and fades
-            # gradually over roughly six months.
-            score = lexical + recency
-            scored.append((score, stat.st_mtime, path))
-            inventory.append(
-                {
-                    "path": str(path),
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime,
-                }
-            )
-        except OSError:
-            continue
-
-    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    excerpts: list[dict[str, str]] = []
-    remaining = max_excerpt_chars
-    for score, _mtime, path in scored[:16]:
-        if remaining < 800:
-            break
-        excerpt = _safe_excerpt(path, max_chars=min(9000, remaining))
-        remaining -= len(excerpt)
-        excerpts.append({"path": str(path), "score": f"{score:.2f}", "excerpt": excerpt})
-
-    return {
-        "roots_considered": roots,
-        "inventory_count": len(inventory),
-        "inventory": inventory[:500],
-        "relevant_excerpts": excerpts,
-        "inventory_truncated": len(inventory) > 500,
-    }
+from .util import json_dumps, truncate_text
 
 
 def extract_event_transcript(events_path: str | None, *, max_chars: int = 50000) -> str:
@@ -206,7 +60,7 @@ def extract_event_transcript(events_path: str | None, *, max_chars: int = 50000)
 def build_campaign_ledger(store: Store, campaign_id: str) -> dict[str, Any]:
     """Build a task-neutral cumulative view from prior structured handoffs."""
     episodes = list(reversed(store.list_episodes(campaign_id, limit=30)))
-    state_updates: list[dict[str, Any]] = []
+    latest_state: dict[tuple[str, ...], dict[str, Any]] = {}
     completed_actions: list[str] = []
     decisions: list[dict[str, Any]] = []
     deliverables: list[dict[str, Any]] = []
@@ -222,8 +76,20 @@ def build_campaign_ledger(store: Store, campaign_id: str) -> dict[str, Any]:
         raw_handoff = episode.get("handoff")
         if not isinstance(raw_handoff, dict):
             continue
-        handoff = normalize_handoff(raw_handoff)
-        state_updates.extend(handoff.get("state_updates") or [])
+        handoff = normalize_handoff(raw_handoff, preserve_internal=True)
+        episode_scope = str(episode.get("id") or episode.get("number"))
+        for item in handoff.get("state_updates") or []:
+            state_id = str(item["id"])
+            if item.get(STATE_ID_ORIGIN_FIELD) == GENERATED_ID_ORIGIN:
+                key = ("episode", episode_scope, state_id)
+            else:
+                key = ("campaign", state_id)
+            latest_state.pop(key, None)
+            latest_state[key] = {
+                field: value
+                for field, value in item.items()
+                if field != STATE_ID_ORIGIN_FIELD
+            }
         completed_actions.extend(handoff.get("completed_actions") or [])
         decisions.extend(handoff.get("decisions") or [])
         deliverables.extend(handoff.get("deliverables") or [])
@@ -251,15 +117,16 @@ def build_campaign_ledger(store: Store, campaign_id: str) -> dict[str, Any]:
             }
         )
 
+    state_updates = list(latest_state.values())[-240:]
     state_by_kind: dict[str, list[dict[str, Any]]] = {}
-    for item in state_updates[-240:]:
+    for item in state_updates:
         kind = str(item.get("kind") or "other")
         state_by_kind.setdefault(kind, []).append(item)
 
     return {
         "episode_summaries": summaries,
         "profile_history": profile_history,
-        "state_updates": state_updates[-240:],
+        "state_updates": state_updates,
         "state_by_kind": state_by_kind,
         "completed_actions": completed_actions[-160:],
         "decisions": decisions[-100:],
@@ -284,7 +151,11 @@ def build_context_pack(
 ) -> dict[str, Any]:
     last = store.last_episode(campaign["id"])
     raw_handoff = last.get("handoff") if last else None
-    previous_handoff = normalize_handoff(raw_handoff) if isinstance(raw_handoff, dict) else None
+    previous_handoff = (
+        public_handoff(normalize_handoff(raw_handoff, preserve_internal=True))
+        if isinstance(raw_handoff, dict)
+        else None
+    )
     previous_final = truncate_text(str(last.get("final_text") or ""), 30000) if last else ""
     previous_transcript = extract_event_transcript(last.get("events_path") if last else None)
     boundaries = campaign.get("operating_boundaries") or campaign.get("authorized_scope") or {}

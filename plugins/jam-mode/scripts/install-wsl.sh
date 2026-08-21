@@ -21,7 +21,12 @@ PY
 command -v codex >/dev/null 2>&1 || fail "the Codex CLI must be installed and available on PATH."
 
 mkdir -p "$DEST_ROOT"
-if [[ "$(readlink -f "$SOURCE_ROOT")" != "$(readlink -f "$DEST_ROOT")" ]]; then
+source_full="$(readlink -f "$SOURCE_ROOT")"
+dest_full="$(readlink -f "$DEST_ROOT")"
+if [[ "$dest_full" == "$source_full"/* ]]; then
+  fail "the install destination must not be inside the marketplace source directory."
+fi
+if [[ "$source_full" != "$dest_full" ]]; then
   # Copy through a staging directory so an interrupted update cannot leave a
   # half-written marketplace. Preserve no state here; campaign state lives in
   # CODEX_HOME/jam-mode.
@@ -80,16 +85,32 @@ resolved = resolve_routing(requested, catalog_entries=[])
 ensure_managed_agents(resolved)
 PY
 
-market_json="$(codex plugin marketplace add "$DEST_ROOT" --json)" || fail "could not add the local marketplace."
-market_name="$(printf '%s' "$market_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("marketplaceName") or "jam-mode-local")')"
+market_name="$(python3 - "$DEST_ROOT/.agents/plugins/marketplace.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+name = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("name")
+if not name:
+    raise SystemExit("the marketplace manifest must declare a name")
+print(name)
+PY
+)"
+plugin_help="$(codex plugin --help 2>&1)"
+if grep -Eq '^[[:space:]]+add([[:space:]]|$)' <<<"$plugin_help"; then
+  supports_plugin_install=1
+else
+  supports_plugin_install=0
+fi
+
+codex plugin marketplace add "$DEST_ROOT" >/dev/null || fail "could not add the local marketplace."
 
 printf '%s\n' "$market_name" > "$DEST_ROOT/.jam-marketplace-name"
 
-if ! codex plugin add jam-mode -m "$market_name" --json >/dev/null 2>&1; then
-  # Reinstalling is the most predictable way to refresh Codex's local plugin
-  # cache after an in-place plugin update.
-  codex plugin remove jam-mode -m "$market_name" --json >/dev/null 2>&1 || true
-  codex plugin add jam-mode -m "$market_name" --json >/dev/null
+if [[ "$supports_plugin_install" == 1 ]]; then
+  if ! codex plugin add jam-mode -m "$market_name" >/dev/null 2>&1; then
+    codex plugin remove jam-mode -m "$market_name" >/dev/null 2>&1 || true
+    codex plugin add jam-mode -m "$market_name" >/dev/null
+  fi
 fi
 
 mkdir -p "$BIN_DIR"
@@ -105,6 +126,9 @@ printf 'Plugin source: %s\n' "$PLUGIN_ROOT"
 printf 'Companion command: %s/jam\n' "$BIN_DIR"
 printf 'State and routing config: %s/jam-mode\n' "$CODEX_HOME_EFFECTIVE"
 printf 'Managed agents: %s/agents/jam_*.toml\n' "$CODEX_HOME_EFFECTIVE"
+if [[ "$supports_plugin_install" == 0 ]]; then
+  printf 'Plugin activation: install or Refresh JAM Mode under Codex Settings > Plugins.\n'
+fi
 printf '\nRestart Codex Desktop and start a new Desktop/CLI conversation before using the plugin.\n'
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
   printf 'Add the companion command to PATH, for example:\n  export PATH="%s:$PATH"\n' "$BIN_DIR"

@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from jam.store import Store, StoreError
@@ -47,9 +48,10 @@ class StoreTests(unittest.TestCase):
         first = self.store.create_campaign(
             campaign_config(self.workspace, campaign_id="campaign-one", name="One")
         )
-        second = self.store.create_campaign(
-            campaign_config(self.workspace, campaign_id="campaign-two", name="Two")
-        )
+        with self.assertRaisesRegex(StoreError, "one live campaign"):
+            self.store.create_campaign(
+                campaign_config(self.workspace, campaign_id="campaign-two", name="Two")
+            )
         self.assertEqual(first["episode_count"], 0)
         self.assertEqual(first["task_profile"], "adaptive")
         self.assertEqual(
@@ -73,11 +75,6 @@ class StoreTests(unittest.TestCase):
             self.store.create_episode(
                 first["id"], objective="Duplicate", strategy_hint="solo"
             )
-        with self.assertRaises(StoreError):
-            self.store.create_episode(
-                second["id"], objective="Concurrent", strategy_hint="solo"
-            )
-
         self.store.update_episode(episode["id"], thread_id="thr-1")
         finished = self.store.finish_episode(
             episode["id"],
@@ -106,6 +103,10 @@ class StoreTests(unittest.TestCase):
         self.assertIsNone(refreshed["active_episode_id"])
         self.assertEqual(refreshed["last_thread_id"], "thr-1")
 
+        self.store.transition_campaign(first["id"], "paused")
+        second = self.store.create_campaign(
+            campaign_config(self.workspace, campaign_id="campaign-two", name="Two")
+        )
         second_episode = self.store.create_episode(
             second["id"], objective="Now allowed", strategy_hint="solo"
         )
@@ -131,9 +132,39 @@ class StoreTests(unittest.TestCase):
         self.store.release_lease(campaign["id"], "token-a")
         self.assertTrue(self.store.acquire_lease(campaign["id"], "token-b", ttl_seconds=60))
 
+    def test_episode_creation_rechecks_campaign_state_atomically(self) -> None:
+        campaign = self.store.create_campaign(
+            campaign_config(self.workspace, campaign_id="race-campaign", name="Race")
+        )
+        for status in ("paused", "stopped", "stopped_budget"):
+            with self.subTest(status=status):
+                self.store.transition_campaign(campaign["id"], status)
+                with self.assertRaisesRegex(StoreError, "not runnable"):
+                    self.store.create_episode(
+                        campaign["id"], objective="Should not start", strategy_hint="solo"
+                    )
+                self.assertEqual(self.store.list_episodes(campaign["id"]), [])
+                self.store.transition_campaign(campaign["id"], "queued")
+
+    def test_default_resolution_prioritizes_stopping_campaign(self) -> None:
+        paused = self.store.create_campaign(
+            campaign_config(self.workspace, campaign_id="paused", name="Paused")
+        )
+        self.store.transition_campaign(paused["id"], "paused")
+        stopping = self.store.create_campaign(
+            campaign_config(self.workspace, campaign_id="stopping", name="Stopping")
+        )
+        self.store.create_episode(
+            stopping["id"], objective="Active", strategy_hint="solo"
+        )
+        self.store.transition_campaign(stopping["id"], "stopping_after_current")
+
+        self.assertEqual(self.store.resolve_campaign_id(), stopping["id"])
+        self.assertEqual(self.store.resolve_campaign_id("active"), stopping["id"])
+
     def test_in_place_upgrade_from_0_1_adds_profile_columns(self) -> None:
         db = self.root / "legacy.db"
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn:
             conn.executescript(
                 """
                 CREATE TABLE campaigns (

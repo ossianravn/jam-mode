@@ -1,6 +1,6 @@
 {
   "name": "jam-mode",
-  "version": "0.3.0",
+  "version": "0.3.0+codex.20260820224904",
   "description": "Run bounded, adaptive Codex campaigns with validated per-role model and reasoning routing across fresh sessions.",
   "license": "MIT",
   "keywords": [
