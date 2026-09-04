@@ -159,7 +159,15 @@ HANDOFF_SCHEMA: dict[str, Any] = {
                     "required": ["goal_reached", "progress_plateau", "reason"],
                     "additionalProperties": False,
                 },
-                "boundary_flags": {"type": "array", "items": {"type": "string"}},
+                "boundary_flags": {
+                    "type": "array",
+                    "description": (
+                        "Only unresolved actual or proposed actions that require operating-"
+                        "boundary expansion or clarification. Do not record compliance "
+                        "confirmations; use an empty array when all work stayed in bounds."
+                    ),
+                    "items": {"type": "string"},
+                },
             },
             "required": [
                 "status",

@@ -5,6 +5,19 @@ from typing import Any
 from .appserver_transport import AppServerError
 
 
+_PERMISSION_PROFILE_BY_SANDBOX = {
+    "read-only": ":read-only",
+    "workspace-write": ":workspace",
+}
+
+
+def permission_profile_for_sandbox(sandbox: str) -> str:
+    try:
+        return _PERMISSION_PROFILE_BY_SANDBOX[sandbox]
+    except KeyError as exc:
+        raise AppServerError(f"Unsupported JAM sandbox mode: {sandbox!r}") from exc
+
+
 class AppServerSessionMixin:
     def list_models(
         self,
@@ -46,11 +59,10 @@ class AppServerSessionMixin:
         sandbox: str,
         name: str,
     ) -> str:
-        sandbox_value = "workspaceWrite" if sandbox == "workspace-write" else "readOnly"
         params: dict[str, Any] = {
             "cwd": cwd,
             "approvalPolicy": "never",
-            "sandbox": sandbox_value,
+            "permissions": permission_profile_for_sandbox(sandbox),
             "serviceName": "jam_mode",
         }
         if model:

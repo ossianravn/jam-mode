@@ -15,7 +15,7 @@ class PluginLayoutTests(unittest.TestCase):
             (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
         self.assertEqual(manifest["name"], "jam-mode")
-        self.assertRegex(manifest["version"], r"^0\.3\.0(?:\+codex\.[a-z0-9-]+)?$")
+        self.assertRegex(manifest["version"], r"^0\.3\.1(?:\+codex\.[a-z0-9-]+)?$")
         self.assertEqual(manifest["author"]["name"], manifest["interface"]["developerName"])
         for field in (
             "displayName",

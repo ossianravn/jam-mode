@@ -55,7 +55,7 @@ class McpSmokeTests(unittest.TestCase):
                 }
             )
             self.assertEqual(initialized["result"]["serverInfo"]["name"], "jam-mode")
-            self.assertEqual(initialized["result"]["serverInfo"]["version"], "0.3.0")
+            self.assertEqual(initialized["result"]["serverInfo"]["version"], "0.3.1")
             self.assertIn("task-general", initialized["result"]["instructions"])
             process.stdin.write(
                 json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n"

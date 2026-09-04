@@ -97,14 +97,41 @@ class ControllerIntegrationTests(unittest.TestCase):
                         method = message.get("method")
                         request_id = message.get("id")
                         if method == "initialize":
-                            send({{"id": request_id, "result": {{"serverInfo": {{"name": "fake"}}}}}})
+                            capabilities = (message.get("params") or {{}}).get("capabilities") or {{}}
+                            if capabilities.get("experimentalApi") is not True:
+                                send({{
+                                    "id": request_id,
+                                    "error": {{"code": -32600, "message": "experimentalApi is required"}},
+                                }})
+                            else:
+                                send({{"id": request_id, "result": {{"serverInfo": {{"name": "fake"}}}}}})
                         elif method in ("initialized", "notifications/initialized"):
                             pass
                         elif method == "thread/start":
-                            send({{"id": request_id, "result": {{"thread": {{"id": "thr_fake_001"}}}}}})
+                            permissions = (message.get("params") or {{}}).get("permissions")
+                            if permissions not in {{":read-only", ":workspace"}}:
+                                send({{
+                                    "id": request_id,
+                                    "error": {{
+                                        "code": -32600,
+                                        "message": f"invalid permissions profile: {{permissions}}",
+                                    }},
+                                }})
+                            else:
+                                send({{"id": request_id, "result": {{"thread": {{"id": "thr_fake_001"}}}}}})
                         elif method == "thread/name/set":
                             send({{"id": request_id, "result": {{}}}})
                         elif method == "turn/start":
+                            permissions = (message.get("params") or {{}}).get("permissions")
+                            if permissions != ":read-only":
+                                send({{
+                                    "id": request_id,
+                                    "error": {{
+                                        "code": -32600,
+                                        "message": f"invalid turn permissions profile: {{permissions}}",
+                                    }},
+                                }})
+                                continue
                             send({{"id": request_id, "result": {{"turn": {{"id": "turn_fake_001", "status": "inProgress"}}}}}})
                             send({{
                                 "method": "item/started",

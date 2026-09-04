@@ -7,9 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .appserver_session import AppServerSessionMixin
+from .appserver_session import AppServerSessionMixin, permission_profile_for_sandbox
 from .appserver_transport import AppServerError, AppServerTransport
 from .handoff_schema import HANDOFF_SCHEMA
+from .util import json_dumps
 
 
 @dataclass
@@ -56,36 +57,28 @@ class AppServerClient(AppServerSessionMixin, AppServerTransport):
         list[dict[str, Any]],
         dict[str, Any] | None,
     ]:
-        if sandbox == "workspace-write":
-            sandbox_policy: dict[str, Any] = {
-                "type": "workspaceWrite",
-                "writableRoots": [cwd],
-                "readOnlyAccess": {
-                    "type": "restricted",
-                    "readableRoots": [cwd],
-                    "includePlatformDefaults": True,
-                },
-                "networkAccess": bool(allow_network),
-            }
-        else:
-            sandbox_policy = {
-                "type": "readOnly",
-                "access": {
-                    "type": "restricted",
-                    "readableRoots": [cwd],
-                    "includePlatformDefaults": True,
-                },
-                "networkAccess": bool(allow_network),
-            }
         params: dict[str, Any] = {
             "threadId": thread_id,
             "input": [{"type": "text", "text": prompt}],
             "cwd": cwd,
             "approvalPolicy": "never",
-            "sandboxPolicy": sandbox_policy,
             "summary": "concise",
             "outputSchema": HANDOFF_SCHEMA,
         }
+        if allow_network:
+            if sandbox == "workspace-write":
+                params["sandboxPolicy"] = {
+                    "type": "workspaceWrite",
+                    "writableRoots": [cwd],
+                    "networkAccess": True,
+                }
+            else:
+                params["sandboxPolicy"] = {
+                    "type": "readOnly",
+                    "networkAccess": True,
+                }
+        else:
+            params["permissions"] = permission_profile_for_sandbox(sandbox)
         if model:
             params["model"] = model
         if effort:
@@ -204,7 +197,7 @@ def run_episode_turn(
                 "JAM_CONTROLLER_CAMPAIGN_ID": campaign["id"],
             },
             event_callback=log_event,
-            experimental_api=False,
+            experimental_api=True,
         ) as client:
             thread_id = client.start_thread(
                 cwd=campaign["workspace"],

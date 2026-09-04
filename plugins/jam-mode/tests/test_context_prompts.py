@@ -229,6 +229,7 @@ class ContextAndPromptTests(unittest.TestCase):
         self.assertIn("delegate each bounded role to the exact", prompt)
         self.assertIn("There must be no more than one writer", prompt)
         self.assertIn("Child agents must not spawn", prompt)
+        self.assertIn("boundary_flags must be empty when", prompt)
 
     def test_handoff_schema_is_task_general(self) -> None:
         handoff = HANDOFF_SCHEMA["properties"]["handoff"]
@@ -247,6 +248,10 @@ class ContextAndPromptTests(unittest.TestCase):
         self.assertIn("content", properties["task_profile"]["enum"])
         self.assertIn("operations", properties["task_profile"]["enum"])
         self.assertIn("producer_critic", properties["strategy_used"]["enum"])
+        self.assertIn(
+            "Do not record compliance confirmations",
+            properties["boundary_flags"]["description"],
+        )
 
 
 if __name__ == "__main__":

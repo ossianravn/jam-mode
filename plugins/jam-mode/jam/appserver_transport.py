@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, TextIO
 
+from .util import json_dumps
+
 
 class AppServerError(RuntimeError):
     pass
@@ -187,7 +189,7 @@ class AppServerTransport:
                 "clientInfo": {
                     "name": "jam_mode",
                     "title": "JAM Mode",
-                    "version": "0.3.0",
+                    "version": "0.3.1",
                 },
                 "capabilities": {
                     "experimentalApi": self._experimental_api,

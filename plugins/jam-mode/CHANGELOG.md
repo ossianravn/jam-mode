@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — 2026-09-04
+
+- Updated Codex App Server `thread/start` and `turn/start` requests to negotiate the current named permission-profile capability, while retaining explicit network-enabled sandbox policies.
+- Restored structured App Server and turn-error reporting after the transport/module split.
+- Added protocol regression coverage that rejects malformed sandbox values and exercises JSON-RPC error responses.
+- Made `jam doctor` fail clearly when the installed Codex CLI rejects its global configuration.
+- Clarified the structured handoff contract so in-bounds compliance confirmations do not trigger false boundary pauses.
+
 ## 0.3.0 — 2026-08-02
 
 - Added named-agent model routing for the parent plus explorer, bulk worker, planner, implementer, producer, reviewer, validator, critic, and closer roles.

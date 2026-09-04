@@ -26,6 +26,12 @@ def _nearest_existing_parent(path: Path) -> Path:
     return candidate
 
 
+def _codex_command(codex: str, *arguments: str) -> list[str]:
+    if os.name == "nt" and Path(codex).suffix.lower() in {".cmd", ".bat"}:
+        return ["cmd.exe", "/d", "/s", "/c", codex, *arguments]
+    return [codex, *arguments]
+
+
 def doctor() -> dict[str, Any]:
     codex = shutil.which("codex")
     codex_path = codex_home_path()
@@ -86,11 +92,29 @@ def doctor() -> dict[str, Any]:
     ]
     if codex:
         try:
-            command = [codex, "app-server", "--help"]
-            if os.name == "nt" and Path(codex).suffix.lower() in {".cmd", ".bat"}:
-                command = ["cmd.exe", "/d", "/s", "/c", codex, "app-server", "--help"]
             result = subprocess.run(
-                command, capture_output=True, text=True, timeout=20, check=False
+                _codex_command(codex, "features", "list"),
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+            checks.append(
+                {
+                    "name": "codex_config",
+                    "ok": result.returncode == 0,
+                    "detail": (result.stdout or result.stderr).strip()[:500],
+                }
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            checks.append({"name": "codex_config", "ok": False, "detail": str(exc)})
+        try:
+            result = subprocess.run(
+                _codex_command(codex, "app-server", "--help"),
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
             )
             checks.append(
                 {

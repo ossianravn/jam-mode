@@ -147,7 +147,11 @@ EPISODE COMPLETION
      finding, hypothesis, change, test, milestone, dependency, draft, feedback,
      output, metric, action, risk, blocker, or open_item;
    - deliverables and validation record outputs and how they were checked;
-   - blockers, risks, open_items, and artifacts preserve continuity.
+   - blockers, risks, open_items, and artifacts preserve continuity;
+   - boundary_flags records only unresolved actions that require boundary
+     expansion or clarification. boundary_flags must be empty when all work
+     stayed within bounds and no proposed continuation needs expansion. Never
+     put compliance confirmations such as "no network access" in this field.
 4. Use stable state-update ids when revising an existing item; create concise ids
    for new durable items. Use evidence_refs when concrete references exist and an
    empty list when they are not applicable.
