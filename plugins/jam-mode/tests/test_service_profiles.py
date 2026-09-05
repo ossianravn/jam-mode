@@ -51,7 +51,14 @@ class ServiceProfileTests(unittest.TestCase):
                 os.environ,
                 {"CODEX_HOME": str(codex_home), "JAM_HOME": str(jam_home)},
                 clear=False,
-            ), patch("jam.service.spawn_controller", return_value=4242):
+            ), patch("jam.service.spawn_controller", return_value=4242), patch(
+                "jam.routing_installed.fetch_installed_model_catalog",
+                return_value=[{
+                    "id": "gpt-6-astra",
+                    "defaultReasoningEffort": "medium",
+                    "supportedReasoningEfforts": ["low", "medium", "high", "max"],
+                }],
+            ):
                 result = start_campaign(
                     objective="Draft and verify a migration guide.",
                     workspace=str(workspace),

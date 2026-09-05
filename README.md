@@ -21,26 +21,26 @@ JAM 0.3 adds a first-class routing layer for selecting the model and reasoning e
 - App Server collaboration activity, model events, and token-usage artifacts when available.
 - Safe agent management: JAM modifies only files carrying the `# JAM_MODE_MANAGED=1` marker and refuses project-level name collisions.
 
-Model IDs and effort levels in a preset are requests, not assumptions. With the default `fallback` validation, JAM asks the installed Codex client which models and reasoning efforts are available and records any substitutions. Use `strict` when a campaign must not start unless the requested roster is available exactly.
+Model IDs and effort levels in a preset are requests, not assumptions. With the default `strict` validation, JAM asks the installed Codex client which models and reasoning efforts are available and refuses to start unless the requested roster is available exactly. `fallback` is an explicit opt-in that permits model substitutions.
 
 ## Default balanced roster
 
-A fresh installation uses the `balanced` policy with `fallback` validation:
+A fresh installation uses the `balanced` policy with `strict` validation:
 
 | Role | Managed agent | Requested model | Requested effort | Purpose |
 |---|---|---|---|---|
-| Parent / synthesizer | primary thread | `gpt-5.6-sol` | `high` | Episode decisions, arbitration, synthesis, final response |
-| Explorer | `jam_explorer` | `gpt-5.6-luna` | `medium` | Read-heavy mapping, retrieval, and evidence gathering |
-| Bulk worker | `jam_bulk_worker` | `gpt-5.6-luna` | `low` | Clear, separable, repeatable shards |
-| Planner | `jam_planner` | `gpt-5.6-sol` | `high` | Decomposition, dependencies, and acceptance criteria |
-| Implementer | `jam_implementer` | `gpt-5.6-terra` | `high` | The single code/configuration/data writer |
-| Producer | `jam_producer` | `gpt-5.6-terra` | `high` | The single document/content deliverable writer |
-| Reviewer | `jam_reviewer` | `gpt-5.6-sol` | `high` | Correctness, security, regression, and acceptance review |
-| Validator | `jam_validator` | `gpt-5.6-terra` | `medium` | Tests, reproductions, measurements, and falsification |
-| Critic | `jam_critic` | `gpt-5.6-sol` | `high` | Adversarial challenge and competing explanations |
-| Closer | `jam_closer` | `gpt-5.6-sol` | `high` | Completion assessment and final consolidation |
+| Parent / synthesizer | primary thread | `gpt-6-astra` | `high` | Episode decisions, arbitration, synthesis, final response |
+| Explorer | `jam_explorer` | `gpt-6-astra` | `medium` | Read-heavy mapping, retrieval, and evidence gathering |
+| Bulk worker | `jam_bulk_worker` | `gpt-6-astra` | `low` | Clear, separable, repeatable shards |
+| Planner | `jam_planner` | `gpt-6-astra` | `high` | Decomposition, dependencies, and acceptance criteria |
+| Implementer | `jam_implementer` | `gpt-6-astra` | `high` | The single code/configuration/data writer |
+| Producer | `jam_producer` | `gpt-6-astra` | `high` | The single document/content deliverable writer |
+| Reviewer | `jam_reviewer` | `gpt-6-astra` | `high` | Correctness, security, regression, and acceptance review |
+| Validator | `jam_validator` | `gpt-6-astra` | `medium` | Tests, reproductions, measurements, and falsification |
+| Critic | `jam_critic` | `gpt-6-astra` | `high` | Adversarial challenge and competing explanations |
+| Closer | `jam_closer` | `gpt-6-astra` | `high` | Completion assessment and final consolidation |
 
-`economy` favors Luna and Terra. `quality` uses Sol more broadly and requests higher effort. `inherit` leaves every role to ordinary Codex inheritance. `custom` provides an empty base for explicit role assignments.
+`economy`, `balanced`, and `quality` all use GPT-6-Astra. They differ only in reasoning effort: economy requests lower effort, while quality requests higher effort. `inherit` leaves every role to ordinary Codex inheritance. `custom` provides an empty base for explicit role assignments.
 
 ## Routing validation
 
@@ -174,9 +174,9 @@ Each entry shows the default and advertised reasoning efforts reported by the in
 
 ```bash
 jam routing
-jam routing --policy economy --validation fallback
+jam routing --policy economy --validation strict
 jam routing --policy balanced --validation strict
-jam routing --policy quality --validation fallback
+jam routing --policy quality --validation strict
 jam routing --policy inherit
 ```
 
@@ -187,13 +187,13 @@ Global defaults live at `$CODEX_HOME/jam-mode/config.toml`. Configure them throu
 ```bash
 jam routing \
   --policy custom \
-  --model gpt-5.6-sol \
+  --model gpt-6-astra \
   --effort high \
-  --role-model explorer=gpt-5.6-luna \
+  --role-model explorer=gpt-6-astra \
   --role-effort explorer=medium \
-  --role-model implementer=gpt-5.6-terra \
+  --role-model implementer=gpt-6-astra \
   --role-effort implementer=high \
-  --role-model reviewer=gpt-5.6-sol \
+  --role-model reviewer=gpt-6-astra \
   --role-effort reviewer=high
 ```
 
@@ -212,7 +212,7 @@ A campaign freezes its requested and resolved roster when created. Global change
 ```bash
 jam pause <campaign-id>
 jam routing <campaign-id> --policy quality
-jam routing <campaign-id> --role-model reviewer=gpt-5.6-sol --role-effort reviewer=max
+jam routing <campaign-id> --role-model reviewer=gpt-6-astra --role-effort reviewer=max
 jam routing <campaign-id> --refresh
 jam resume <campaign-id>
 ```
@@ -230,7 +230,7 @@ jam start \
   --profile adaptive \
   --sandbox workspace-write \
   --model-policy balanced \
-  --model-validation fallback \
+  --model-validation strict \
   --objective "Implement the import workflow, validate it, review it, update operator documentation, and stop when all acceptance criteria are verified." \
   --success "Focused and integration tests pass; documentation examples are verified; no material review finding remains." \
   --max-episodes 10 \
@@ -246,11 +246,11 @@ jam start \
   -C ~/src/project \
   --sandbox workspace-write \
   --model-policy balanced \
-  --model gpt-5.6-sol \
+  --model gpt-6-astra \
   --effort high \
-  --role-model explorer=gpt-5.6-luna \
+  --role-model explorer=gpt-6-astra \
   --role-effort explorer=low \
-  --role-model reviewer=gpt-5.6-sol \
+  --role-model reviewer=gpt-6-astra \
   --role-effort reviewer=xhigh \
   --objective "Diagnose the flaky integration test, implement the smallest safe fix, independently review it, and verify the relevant suites."
 ```

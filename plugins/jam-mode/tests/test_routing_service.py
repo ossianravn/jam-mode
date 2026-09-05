@@ -72,7 +72,7 @@ class RoutingServiceTests(unittest.TestCase):
                     "custom-luna",
                 )
                 self.assertEqual(
-                    configured["campaign"]["model"], "gpt-5.6-sol"
+                    configured["campaign"]["model"], "gpt-6-astra"
                 )
 
                 refreshed = refresh_campaign_routing(
@@ -100,7 +100,7 @@ class RoutingServiceTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     quality["campaign"]["resolved_routing"]["roles"]["implementer"]["model"],
-                    "gpt-5.6-sol",
+                    "gpt-6-astra",
                 )
                 self.assertEqual(
                     quality["campaign"]["resolved_routing"]["roles"]["explorer"]["model"],

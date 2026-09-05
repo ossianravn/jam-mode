@@ -40,7 +40,7 @@ Default to:
 - `sandbox: read-only` unless the objective clearly requires workspace changes
 - `allow_network: false`
 - `max_subagents: 2`
-- saved model-routing defaults (`balanced` / `fallback` on a new install)
+- saved model-routing defaults (`balanced` / `strict` on a new install)
 - child Ultra disabled unless explicitly requested
 - bounded episode and elapsed-time limits
 

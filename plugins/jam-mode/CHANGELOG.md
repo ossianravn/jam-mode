@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-09-05
+
+- Changed economy, balanced, and quality presets to GPT-6-Astra for every role, preserving their reasoning-effort profiles.
+- Made strict model validation the default for new configurations and routing requests, preventing implicit model fallback.
+- Updated agent instructions and usage examples for GPT-6. Explicit fallback and custom/inherited routing remain opt-in; existing saved campaign histories are preserved.
+
 ## 0.3.1 — 2026-09-04
 
 - Updated Codex App Server `thread/start` and `turn/start` requests to negotiate the current named permission-profile capability, while retaining explicit network-enabled sandbox policies.

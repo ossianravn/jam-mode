@@ -209,9 +209,9 @@ class ContextAndPromptTests(unittest.TestCase):
             },
             {"campaign_ledger": {}, "previous_episode": None},
         )
-        self.assertIn("gpt-5.6-sol · high", prompt)
-        self.assertIn("jam_implementer · gpt-5.6-terra · high", prompt)
-        self.assertIn("jam_reviewer · gpt-5.6-sol · high", prompt)
+        self.assertIn("gpt-6-astra · high", prompt)
+        self.assertIn("jam_implementer · gpt-6-astra · high", prompt)
+        self.assertIn("jam_reviewer · gpt-6-astra · high", prompt)
         self.assertIn("builder_reviewer: jam_implementer → jam_reviewer", prompt)
         self.assertIn(
             "planner_executor: jam_planner first, then choose exactly one writer",

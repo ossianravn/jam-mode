@@ -189,7 +189,7 @@ class AppServerTransport:
                 "clientInfo": {
                     "name": "jam_mode",
                     "title": "JAM Mode",
-                    "version": "0.3.1",
+                    "version": "0.3.2",
                 },
                 "capabilities": {
                     "experimentalApi": self._experimental_api,

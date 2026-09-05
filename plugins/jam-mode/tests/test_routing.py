@@ -6,6 +6,7 @@ from jam.cli_output import _parse_assignments
 from jam.routing import (
     RoutingError,
     build_requested_routing,
+    default_routing_config,
     merge_routing_config,
     resolve_routing,
 )
@@ -27,12 +28,29 @@ def model_entry(model_id: str, efforts: list[str], default: str = "medium") -> d
 class RoutingTests(unittest.TestCase):
     def test_balanced_policy_routes_named_roles(self) -> None:
         requested = build_requested_routing(policy="balanced", validation="off")
-        self.assertEqual(requested["parent"]["model"], "gpt-5.6-sol")
-        self.assertEqual(requested["roles"]["explorer"]["model"], "gpt-5.6-luna")
-        self.assertEqual(requested["roles"]["implementer"]["model"], "gpt-5.6-terra")
-        self.assertEqual(requested["roles"]["reviewer"]["model"], "gpt-5.6-sol")
+        self.assertEqual(requested["parent"]["model"], "gpt-6-astra")
+        self.assertEqual(requested["roles"]["explorer"]["model"], "gpt-6-astra")
+        self.assertEqual(requested["roles"]["implementer"]["model"], "gpt-6-astra")
+        self.assertEqual(requested["roles"]["reviewer"]["model"], "gpt-6-astra")
         self.assertEqual(requested["roles"]["reviewer"]["agent"], "jam_reviewer")
         self.assertEqual(requested["strategy_routes"]["builder_reviewer"], ["implementer", "reviewer"])
+
+    def test_presets_require_gpt6_without_implicit_fallback(self) -> None:
+        self.assertEqual(default_routing_config()["validation"], "strict")
+        for policy in ("economy", "balanced", "quality"):
+            with self.subTest(policy=policy):
+                requested = build_requested_routing(policy=policy)
+                self.assertEqual(requested["validation"], "strict")
+                roster = [requested["parent"], *requested["roles"].values()]
+                self.assertEqual({role["model"] for role in roster}, {"gpt-6-astra"})
+                with self.assertRaises(RoutingError):
+                    resolve_routing(requested, catalog_entries=[
+                        model_entry("gpt-5.6-sol", ["low", "medium", "high", "max"])
+                    ])
+                resolved = resolve_routing(requested, catalog_entries=[
+                    model_entry("gpt-6-astra", ["low", "medium", "high", "max"])
+                ])
+                self.assertEqual(resolved["warnings"], [])
 
     def test_parent_overrides_require_dedicated_channel(self) -> None:
         with self.assertRaisesRegex(RoutingError, "dedicated 'model' argument"):

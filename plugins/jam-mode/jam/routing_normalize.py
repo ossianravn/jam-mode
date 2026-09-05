@@ -54,7 +54,7 @@ def normalize_policy(value: object | None, *, default: str = "balanced") -> str:
     return policy
 
 
-def normalize_validation_mode(value: object | None, *, default: str = "fallback") -> str:
+def normalize_validation_mode(value: object | None, *, default: str = "strict") -> str:
     mode = str(value or default).strip().lower().replace("-", "_")
     aliases = {"none": "off", "disabled": "off", "validate": "strict"}
     mode = aliases.get(mode, mode)

@@ -23,7 +23,7 @@ def default_routing_config() -> dict[str, Any]:
     return {
         "schema_version": ROUTING_CONFIG_SCHEMA_VERSION,
         "policy": "balanced",
-        "validation": "fallback",
+        "validation": "strict",
         "allow_child_ultra": False,
         "allow_parent_ultra": False,
         "parent": {"model": None, "effort": None},

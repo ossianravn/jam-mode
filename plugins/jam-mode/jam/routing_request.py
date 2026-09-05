@@ -23,7 +23,7 @@ from .routing_normalize import (
 def build_requested_routing(
     *,
     policy: str = "balanced",
-    validation: str = "fallback",
+    validation: str = "strict",
     parent_model: str | None = None,
     parent_effort: str | None = None,
     role_models: dict[str, Any] | None = None,

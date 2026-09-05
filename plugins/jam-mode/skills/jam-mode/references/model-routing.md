@@ -7,9 +7,9 @@ JAM separates the **parent/synthesizer** from named, bounded child roles. A camp
 | Policy | Intent | Parent | Typical children |
 |---|---|---|---|
 | `inherit` | Respect the parent and existing Codex defaults | inherited | inherited |
-| `economy` | Minimize cost and latency for routine work | Terra / medium | Luna or Terra / low–high |
-| `balanced` | Strong synthesis with economical bounded work | Sol / high | Luna exploration, Terra implementation, Sol review |
-| `quality` | Maximize quality for difficult, high-value work | Sol / requested maximum | Terra or Sol at higher effort |
+| `economy` | Minimize cost and latency for routine work | GPT-6-Astra / medium | GPT-6-Astra / low–high |
+| `balanced` | Strong synthesis with economical bounded work | GPT-6-Astra / high | GPT-6-Astra / low–high |
+| `quality` | Maximize quality for difficult, high-value work | GPT-6-Astra / max | GPT-6-Astra / medium–max |
 | `custom` | Define every role explicitly | user configured | user configured |
 
 All preset values are requests. With `strict` or `fallback` validation, JAM asks Codex App Server `model/list` which model ids and reasoning efforts are actually available.
@@ -80,7 +80,7 @@ jam routing
 Select a preset:
 
 ```bash
-jam routing --policy balanced --validation fallback
+jam routing --policy balanced --validation strict
 ```
 
 Override roles:
@@ -88,13 +88,13 @@ Override roles:
 ```bash
 jam routing \
   --policy custom \
-  --model gpt-5.6-sol \
+  --model gpt-6-astra \
   --effort high \
-  --role-model explorer=gpt-5.6-luna \
+  --role-model explorer=gpt-6-astra \
   --role-effort explorer=medium \
-  --role-model implementer=gpt-5.6-terra \
+  --role-model implementer=gpt-6-astra \
   --role-effort implementer=high \
-  --role-model reviewer=gpt-5.6-sol \
+  --role-model reviewer=gpt-6-astra \
   --role-effort reviewer=high
 ```
 
@@ -107,7 +107,7 @@ jam start \
   -C ~/src/project \
   --objective "Implement, review, and validate the requested feature." \
   --model-policy quality \
-  --role-model explorer=gpt-5.6-luna \
+  --role-model explorer=gpt-6-astra \
   --role-effort explorer=medium \
   --max-subagents 2
 ```
