@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "pause":
             result = pause_campaign(args.campaign)
         elif args.command == "resume":
-            result = resume_campaign(args.campaign, guidance=args.guidance)
+            result = resume_campaign(args.campaign, guidance=args.guidance, max_subagents=args.max_subagents)
         elif args.command == "stop":
             result = stop_campaign(args.campaign)
         elif args.command == "add-memory":

@@ -40,7 +40,7 @@ TASK_PROFILE_DESCRIPTIONS: Final[dict[str, str]] = {
 
 
 STRATEGIES: Final[tuple[str, ...]] = (
-    "solo",
+    "duo_independent",
     "parallel_explore",
     "critique_synthesize",
     "map_reduce",
@@ -48,7 +48,6 @@ STRATEGIES: Final[tuple[str, ...]] = (
     "planner_executor",
     "producer_critic",
     "execute_validate",
-    "duo_independent",
     "discover_reproduce",
     "evidence_arbitration",
     "reorientation",
@@ -56,7 +55,6 @@ STRATEGIES: Final[tuple[str, ...]] = (
 )
 
 STRATEGY_DESCRIPTIONS: Final[dict[str, str]] = {
-    "solo": "One agent handles a clear, bounded objective and verifies its own work.",
     "parallel_explore": "Independent agents explore alternatives or facets before the parent synthesizes.",
     "critique_synthesize": "One or more proposals are challenged, compared, and consolidated into a stronger result.",
     "map_reduce": "Separable work is distributed to specialists and then aggregated.",
@@ -64,7 +62,7 @@ STRATEGY_DESCRIPTIONS: Final[dict[str, str]] = {
     "planner_executor": "A planning pass defines the work before one executor performs the bounded plan.",
     "producer_critic": "A producer creates a draft or deliverable and a critic improves or verifies it.",
     "execute_validate": "Perform a deterministic action, then independently validate its outcome.",
-    "duo_independent": "Legacy/specialized independent investigator-and-skeptic workflow followed by synthesis.",
+    "duo_independent": "Default: two independent investigator-and-skeptic analyses followed by parent synthesis.",
     "discover_reproduce": "Legacy/specialized discoverer-and-reproducer workflow for independently validating a claim.",
     "evidence_arbitration": "Conflicting observations or recommendations are independently audited and reconciled.",
     "reorientation": "Repeated low progress or stale assumptions require a materially different direction.",
@@ -140,7 +138,7 @@ def normalize_task_profile(value: object, *, default: str = "general") -> str:
     return profile if profile in TASK_PROFILES else default
 
 
-def normalize_strategy(value: object, *, default: str = "solo") -> str:
+def normalize_strategy(value: object, *, default: str = "duo_independent") -> str:
     strategy = str(value or "").strip().lower().replace("-", "_")
     aliases = {
         "duo": "duo_independent",

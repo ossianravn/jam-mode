@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from .contracts import normalize_strategy
+from .episode_strategy import validate_agent_budget
 from .handoff import normalize_handoff
 from .store import Store
 
@@ -47,6 +49,7 @@ def _recommended_option(handoff: dict[str, Any] | None) -> dict[str, Any] | None
 def next_episode_plan(
     store: Store, campaign: dict[str, Any]
 ) -> tuple[str, str | None, str | None]:
+    validate_agent_budget(campaign)
     last = store.last_episode(campaign["id"])
     if last and isinstance(last.get("handoff"), dict):
         handoff = normalize_handoff(last["handoff"])
@@ -54,18 +57,18 @@ def next_episode_plan(
         if option:
             return (
                 str(option.get("objective") or campaign["objective"]),
-                str(option.get("strategy") or "solo"),
+                normalize_strategy(option.get("strategy")),
                 str(option.get("task_profile") or handoff.get("task_profile") or "general"),
             )
         open_item = (handoff.get("open_items") or [None])[0]
         if open_item:
             return (
                 f"Resolve the highest-value open item: {open_item}",
-                None,
+                "duo_independent",
                 str(handoff.get("task_profile") or campaign.get("task_profile") or "adaptive"),
             )
     profile = str(campaign.get("task_profile") or "adaptive")
-    return campaign["objective"], None, profile
+    return campaign["objective"], "duo_independent", profile
 
 
 def _budget_gate(campaign: dict[str, Any]) -> tuple[bool, str | None, str | None]:
@@ -99,11 +102,11 @@ def continuation_decision(
         )
     if handoff.get("needs_user_input") or handoff.get("status") in {"needs_user", "blocked"}:
         return False, "needs_input", str(handoff.get("user_question") or handoff.get("summary")), low_progress
+    if handoff.get("status") == "error":
+        return False, "error", str(handoff.get("summary") or "Episode reported an error."), low_progress
     completion = handoff.get("completion_assessment") or {}
     if handoff.get("status") == "complete" or completion.get("goal_reached"):
         return False, "completed", str(completion.get("reason") or handoff.get("summary")), 0
-    if handoff.get("status") == "error":
-        return False, "error", str(handoff.get("summary") or "Episode reported an error."), low_progress
 
     plateau = bool(completion.get("progress_plateau")) or float(
         handoff.get("progress_score") or 0.0

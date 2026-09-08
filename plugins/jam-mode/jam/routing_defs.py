@@ -192,10 +192,8 @@ Do not modify files. Do not invoke JAM controls. Do not spawn additional agents.
     },
 }
 
-# These routes are a deterministic baseline. The parent can omit unnecessary
-# roles, but it should not silently replace a routed role with an unnamed worker.
+# Every strategy requires at least two child contributions and parent synthesis.
 STRATEGY_AGENT_ROUTES: Final[dict[str, tuple[str, ...]]] = {
-    "solo": (),
     "parallel_explore": ("explorer",),
     "critique_synthesize": ("critic", "reviewer"),
     "map_reduce": ("bulk_worker",),
@@ -207,7 +205,7 @@ STRATEGY_AGENT_ROUTES: Final[dict[str, tuple[str, ...]]] = {
     "discover_reproduce": ("explorer", "validator"),
     "evidence_arbitration": ("reviewer", "critic"),
     "reorientation": ("planner", "critic"),
-    "closure": ("closer",),
+    "closure": ("closer", "reviewer"),
 }
 
 # Presets deliberately separate orchestration/synthesis from bounded child work.

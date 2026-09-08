@@ -15,7 +15,8 @@ from .controller_decisions import (
     next_episode_plan,
 )
 from .controller_reporting import LEASE_TTL_SECONDS, LeaseHeartbeat, _write_campaign_summary
-from .handoff import HandoffError, fallback_error_handoff, parse_structured_response
+from .episode_result import read_episode_result
+from .handoff import fallback_error_handoff
 from .lifecycle import RUNNABLE_CAMPAIGN_STATUSES
 from .paths import episode_dir
 from .prompts import render_episode_prompt
@@ -181,16 +182,7 @@ def run_campaign(campaign_id: str) -> int:
                 token_usage=result.token_usage,
             )
 
-            parse_error: str | None = None
-            try:
-                report, handoff = parse_structured_response(result.final_text)
-            except HandoffError as exc:
-                parse_error = str(exc)
-                report = (
-                    "# Episode did not return a valid handoff\n\n"
-                    f"{parse_error}\n\n## Raw final response\n\n{result.final_text}"
-                )
-                handoff = fallback_error_handoff(parse_error)
+            report, handoff, parse_error = read_episode_result(result)
 
             atomic_write(final_path, report)
             atomic_write(handoff_path, json_dumps(handoff, pretty=True))
@@ -206,11 +198,11 @@ def run_campaign(campaign_id: str) -> int:
             )
             campaign = store.get_campaign(campaign_id)
             should_continue, status, reason, low_progress = continuation_decision(
-                campaign, handoff, turn_status=result.status
+                campaign, handoff, turn_status=episode_status
             )
             updates: dict[str, Any] = {
                 "low_progress_count": low_progress,
-                "last_error": reason if status in {"error", "needs_input", "stopped_budget"} else None,
+                "last_error": (error or reason) if status in {"error", "needs_input", "stopped_budget"} else None,
             }
             if not should_continue:
                 if status in {"completed", "stopped", "stopped_budget"}:

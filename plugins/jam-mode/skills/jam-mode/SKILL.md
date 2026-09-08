@@ -1,6 +1,6 @@
 ---
 name: jam-mode
-description: Start, inspect, pause, resume, stop, or configure a bounded multi-session JAM campaign for any Codex-compatible task. Use when work should continue across naturally ending fresh sessions, prior transcripts and memories should inform each next prompt, task profiles and named solo/multi-agent strategies should adapt to the request, per-role models or reasoning efforts should be routed and validated, or disabling should finish the current episode without starting another.
+description: Start, inspect, pause, resume, stop, or configure a bounded multi-session JAM campaign for any Codex-compatible task. Use when work should continue across naturally ending fresh sessions with Duo as the default, independent agent contributions and parent synthesis, relevant prior context, per-role model routing, and graceful pause after the current episode.
 ---
 
 # JAM Mode
@@ -14,7 +14,7 @@ JAM is task-general. A campaign may investigate, implement, review, document, pl
 - Run at most one top-level JAM episode at a time.
 - Each episode is a fresh Codex thread and is expected to finish naturally.
 - Select a task profile per episode: general, research, security research, engineering, review, documentation, planning, data, operations, content, or mixed.
-- Select the smallest useful strategy: solo, parallel exploration, critique/synthesis, map/reduce, builder/reviewer, planner/executor, producer/critic, execute/validate, evidence arbitration, reorientation, or closure. Specialized legacy duo and discover/reproduce strategies remain available.
+- Default to Duo: spawn an independent explorer and critic, wait for both, then synthesize in the parent. Other multi-agent strategies require a task-specific reason and at least two child contributions. Single-agent execution and solo fallback are unavailable.
 - Parallelize genuinely independent work. Never use more than one writer in a shared checkout.
 - Treat the campaign charter and operating boundaries as immutable during autonomous work.
 - Disabling JAM means “finish the active episode, save its handoff, and do not start another.” It is not an interrupt.

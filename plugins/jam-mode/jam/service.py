@@ -6,6 +6,7 @@ from typing import Any
 
 from .contracts import TASK_PROFILES, normalize_task_profile
 from .controller import spawn_controller
+from .episode_strategy import validate_agent_budget
 from .service_boundaries import (
     _assert_single_live_campaign,
     _boundary_value,
@@ -85,8 +86,7 @@ def start_campaign(
         raise ValueError("continuation_threshold must be between 0 and 1.")
     if not (1 <= int(max_low_progress) <= 20):
         raise ValueError("max_low_progress must be between 1 and 20.")
-    if not (1 <= int(max_subagents) <= 16):
-        raise ValueError("max_subagents must be between 1 and 16.")
+    validate_agent_budget({"max_subagents": max_subagents})
 
     boundaries = _boundary_value(
         operating_boundaries if operating_boundaries is not None else authorized_scope,

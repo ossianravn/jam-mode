@@ -86,7 +86,7 @@ def normalize_handoff(
 ) -> dict[str, Any]:
     legacy_profile = _infer_legacy_profile(handoff)
     task_profile = normalize_task_profile(handoff.get("task_profile"), default=legacy_profile)
-    strategy = normalize_strategy(handoff.get("strategy_used"))
+    strategy = normalize_strategy(handoff.get("strategy_used"), default=str(handoff.get("strategy_used") or "unknown"))
 
     state_updates = _clean_state_updates(
         handoff.get("state_updates"),
@@ -197,7 +197,7 @@ def fallback_error_handoff(message: str) -> dict[str, Any]:
         "progress_score": 0.0,
         "task_profile": "general",
         "profile_reason": "The episode did not return a valid structured handoff.",
-        "strategy_used": "solo",
+        "strategy_used": "unknown",
         "strategy_reason": "The episode did not return a valid structured handoff.",
         "completed_actions": [],
         "decisions": [],

@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from jam.controller import run_campaign
 from jam.store import Store
+from tests.collaboration_events import duo_events
 
 
 FAKE_HANDOFF = {
@@ -22,8 +23,8 @@ FAKE_HANDOFF = {
         "progress_score": 1.0,
         "task_profile": "general",
         "profile_reason": "A deterministic protocol exercise needed no specialized profile.",
-        "strategy_used": "solo",
-        "strategy_reason": "A deterministic bounded check was sufficient.",
+        "strategy_used": "duo_independent",
+        "strategy_reason": "Two independent analyses were synthesized by the parent.",
         "completed_actions": ["Ran the fake integration check."],
         "decisions": [],
         "state_updates": [
@@ -64,6 +65,19 @@ FAKE_HANDOFF = {
 
 class ControllerIntegrationTests(unittest.TestCase):
     def test_full_episode_through_fake_app_server(self) -> None:
+        self._exercise(duo_events(), "completed")
+
+    def test_single_child_cannot_complete_campaign(self) -> None:
+        self._exercise(duo_events()[1:], "error")
+
+    def test_error_report_cannot_complete_campaign_without_agents(self) -> None:
+        payload = json.loads(json.dumps(FAKE_HANDOFF))
+        payload["handoff"]["status"] = "error"
+        payload["handoff"]["summary"] = "Episode failed despite claiming the goal was reached."
+        self._exercise([], "error", payload, "Episode failed")
+
+    def _exercise(self, activity: list[dict], expected_status: str,
+                  payload: dict | None = None, expected_error: str = "two distinct direct child agents") -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             codex_home = root / "codex-home"
@@ -73,7 +87,7 @@ class ControllerIntegrationTests(unittest.TestCase):
             workspace.mkdir()
             fake_bin.mkdir()
             fake_codex = fake_bin / ("fake_codex.py" if os.name == "nt" else "codex")
-            payload_literal = repr(json.dumps(FAKE_HANDOFF))
+            payload_literal = repr(json.dumps(payload or FAKE_HANDOFF))
             fake_codex.write_text(
                 textwrap.dedent(
                     f"""\
@@ -82,6 +96,7 @@ class ControllerIntegrationTests(unittest.TestCase):
                     import sys
 
                     FINAL_TEXT = {payload_literal}
+                    ACTIVITY = {activity!r}
 
                     if len(sys.argv) >= 3 and sys.argv[1:3] == ["app-server", "--help"]:
                         print("fake app-server")
@@ -133,33 +148,8 @@ class ControllerIntegrationTests(unittest.TestCase):
                                 }})
                                 continue
                             send({{"id": request_id, "result": {{"turn": {{"id": "turn_fake_001", "status": "inProgress"}}}}}})
-                            send({{
-                                "method": "item/started",
-                                "params": {{
-                                    "threadId": "thr_fake_001",
-                                    "turnId": "turn_fake_001",
-                                    "item": {{
-                                        "id": "collab_fake_001",
-                                        "type": "collabToolCall",
-                                        "agentName": "jam_reviewer",
-                                        "prompt": "Use jam_reviewer to independently validate the bounded result."
-                                    }}
-                                }}
-                            }})
-                            send({{
-                                "method": "item/completed",
-                                "params": {{
-                                    "threadId": "thr_fake_001",
-                                    "turnId": "turn_fake_001",
-                                    "item": {{
-                                        "id": "collab_fake_001",
-                                        "type": "collabToolCall",
-                                        "agentName": "jam_reviewer",
-                                        "prompt": "Use jam_reviewer to independently validate the bounded result.",
-                                        "status": "completed"
-                                    }}
-                                }}
-                            }})
+                            for event in ACTIVITY:
+                                send(event)
                             send({{
                                 "method": "model/rerouted",
                                 "params": {{
@@ -244,19 +234,26 @@ class ControllerIntegrationTests(unittest.TestCase):
                 self.assertEqual(result, 0)
 
                 completed = Store().get_campaign(campaign["id"])
-                self.assertEqual(completed["status"], "completed")
+                self.assertEqual(completed["status"], expected_status)
                 self.assertFalse(completed["enabled"])
                 self.assertEqual(completed["episode_count"], 1)
                 self.assertEqual(completed["last_thread_id"], "thr_fake_001")
 
                 episode = Store().last_episode(campaign["id"])
                 assert episode is not None
-                self.assertEqual(episode["status"], "completed")
+                self.assertEqual(episode["status"], expected_status)
                 self.assertEqual(episode["turn_status"], "completed")
+                if expected_status == "error":
+                    self.assertIn(expected_error, episode["error"])
+                    self.assertIn(expected_error, completed["last_error"])
+                    if payload is None:
+                        self.assertFalse(episode["handoff"]["completion_assessment"]["goal_reached"])
+                    return
                 self.assertEqual(episode["handoff"]["status"], "complete")
+                self.assertEqual(episode["strategy_hint"], "duo_independent")
                 self.assertEqual(episode["task_profile_used"], "general")
-                self.assertEqual(len(episode["agent_activity"]), 1)
-                self.assertEqual(episode["agent_activity"][0]["agent_name"], "jam_reviewer")
+                self.assertEqual(len(episode["agent_activity"]), 3)
+                self.assertEqual(episode["agent_activity"][0]["agent_name"], "jam_explorer")
                 self.assertEqual(episode["agent_activity"][0]["event"], "completed")
                 self.assertEqual(episode["model_events"][0]["method"], "model/rerouted")
                 self.assertEqual(
@@ -269,7 +266,7 @@ class ControllerIntegrationTests(unittest.TestCase):
                     self.assertTrue((episode_dir / artifact).exists(), artifact)
                 self.assertEqual(
                     json.loads((episode_dir / "agent-activity.json").read_text(encoding="utf-8"))[0]["agent_name"],
-                    "jam_reviewer",
+                    "jam_explorer",
                 )
                 self.assertEqual(
                     json.loads((episode_dir / "model-events.json").read_text(encoding="utf-8"))[0]["toModel"],

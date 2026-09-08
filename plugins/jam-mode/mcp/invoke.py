@@ -125,7 +125,7 @@ def _invoke(name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str]:
         payload = _campaign_message(result["campaign"], result["message"])
         return payload, result["message"]
     if name == "jam_resume_campaign":
-        result = resume_campaign(identifier, guidance=args.get("guidance"))
+        result = resume_campaign(identifier, guidance=args.get("guidance"), max_subagents=args.get("max_subagents"))
         payload = {
             **_campaign_message(result["campaign"], "JAM resumed with a fresh planning pass."),
             "controller_pid": result.get("controller_pid"),

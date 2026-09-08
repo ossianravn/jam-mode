@@ -76,8 +76,7 @@ def resolve_routing(
         "catalog_checked_at": utc_now(),
         "parent": {},
         "roles": {},
-        "strategy_routes": requested.get("strategy_routes")
-        or {
+        "strategy_routes": {
             strategy: list(roles)
             for strategy, roles in STRATEGY_AGENT_ROUTES.items()
         },

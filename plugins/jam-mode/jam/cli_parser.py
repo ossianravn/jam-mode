@@ -4,6 +4,7 @@ import argparse
 import os
 
 from .contracts import TASK_PROFILES
+from .resumption import add_resume_parser
 from .routing import MODEL_POLICIES, MODEL_VALIDATION_MODES
 
 
@@ -140,9 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     pause = sub.add_parser("pause", help="Stop after the active episode")
     pause.add_argument("campaign", nargs="?")
 
-    resume = sub.add_parser("resume", help="Resume with a fresh planning pass")
-    resume.add_argument("campaign", nargs="?")
-    resume.add_argument("--guidance")
+    add_resume_parser(sub)
 
     stop = sub.add_parser("stop", help="End the campaign after the active episode")
     stop.add_argument("campaign", nargs="?")

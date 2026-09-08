@@ -126,13 +126,13 @@ class AppServerClient(AppServerSessionMixin, AppServerTransport):
             event_params = message.get("params") or {}
             if method in {"item/started", "item/completed"}:
                 item = event_params.get("item") or {}
-                if item.get("type") == "agentMessage" and method == "item/completed":
+                if item.get("type") == "agentMessage" and method == "item/completed" and event_params.get("threadId") == thread_id:
                     text = str(item.get("text") or "")
                     if text:
                         fallback_messages.append(text)
                         if item.get("phase") in {None, "final_answer"}:
                             final_messages.append(text)
-                elif item.get("type") == "collabToolCall":
+                elif item.get("type") in {"collabToolCall", "collabAgentToolCall"}:
                     item_id = str(item.get("id") or f"collab-{len(agent_activity_order) + 1}")
                     if item_id not in agent_activity_by_id:
                         agent_activity_order.append(item_id)

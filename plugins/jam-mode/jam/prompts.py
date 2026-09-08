@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .handoff_schema import HANDOFF_SCHEMA
-from .routing import routing_prompt_summary, strategy_routing_instructions
+from .episode_strategy import render_strategy_instructions
 from .util import json_dumps, truncate_text
 
 
@@ -17,11 +17,7 @@ def render_episode_prompt(
     profile_hint = episode.get("task_profile_hint") or campaign.get("task_profile") or "adaptive"
     boundaries = campaign.get("operating_boundaries") or campaign.get("authorized_scope") or {}
     context_json = truncate_text(json_dumps(context_pack, pretty=True), 110000)
-    resolved_routing = campaign.get("resolved_routing") or {}
-    routing_summary = routing_prompt_summary(resolved_routing)
-    route_instructions = strategy_routing_instructions(resolved_routing)
-    routing_warnings = campaign.get("routing_warnings") or resolved_routing.get("warnings") or []
-    warning_text = "\n".join(f"- {item}" for item in routing_warnings) or "- none"
+    strategy_instructions = render_strategy_instructions(campaign, strategy_hint)
     return f"""You are running JAM Episode {episode['number']} for campaign {campaign['id']}.
 
 JAM is a journey-aware campaign, not a perpetual same-thread loop. This is one
@@ -62,59 +58,7 @@ Available profiles:
 - mixed: an episode intentionally combining multiple profiles;
 - adaptive: retain only when a more specific profile genuinely cannot be chosen.
 
-ADAPTIVE STRATEGY
-A prior session suggested: {strategy_hint}
-Choose the smallest useful topology. You may override the hint when the current
-task and campaign state support a better strategy. Record the reason.
-
-Available strategies:
-- solo: one agent handles clear, bounded work and verifies it;
-- parallel_explore: independent agents explore alternatives/facets, then the parent synthesizes;
-- critique_synthesize: proposals or interpretations are challenged and consolidated;
-- map_reduce: separable specialist tasks followed by aggregation;
-- builder_reviewer: exactly one writer, then an independent reviewer;
-- planner_executor: plan first, then one executor performs the bounded plan;
-- producer_critic: produce a draft/deliverable, then critique and improve it;
-- execute_validate: perform a deterministic action, then independently validate it;
-- duo_independent: specialized investigator/skeptic workflow, retained for compatibility;
-- discover_reproduce: specialized discovery/reproduction workflow for claims;
-- evidence_arbitration: conflicting observations are independently audited and reconciled;
-- reorientation: low progress or stale assumptions require a materially different direction;
-- closure: consolidate final outputs and completion evidence without speculative continuation.
-
-MODEL AND SUBAGENT ROUTING
-The campaign controller has resolved the following roster against the installed
-Codex model catalog when validation was available:
-
-{routing_summary}
-
-Strategy-to-agent routes:
-{route_instructions}
-
-Routing warnings:
-{warning_text}
-
-When you select a multi-agent strategy, delegate each bounded role to the exact
-JAM custom agent named above. The custom-agent files control that child's model,
-reasoning effort, sandbox default, and role instructions. Do not replace a named
-JAM agent with a built-in worker/explorer merely for convenience, and do not
-override its model or effort. The parent agent remains responsible for planning,
-waiting, evidence-weighted synthesis, and the final structured handoff.
-
-For map_reduce or parallel_explore, you may spawn multiple instances of the
-listed role only when the shards are genuinely independent. For sequential
-strategies such as builder_reviewer, planner_executor, producer_critic, and
-execute_validate, wait for the earlier role before starting the dependent role.
-If a required named agent cannot be spawned, either complete the bounded work
-safely in solo mode and record the routing failure, or stop with needs_user_input
-when substituting would reduce safety or invalidate independent verification.
-
-You may use at most {campaign.get('max_subagents', 2)} subagents at one time.
-Parallelize genuinely independent work. Keep child analyses independent until
-they return. Resolve disagreements by evidence, quality criteria, or explicit
-trade-offs rather than voting. Never let two agents edit the same checkout
-concurrently. There must be no more than one writer. Child agents must not spawn
-further agents unless allow_child_ultra is explicitly true in the roster.
+{strategy_instructions}
 
 EXECUTION PERMISSIONS
 - Workspace: {campaign['workspace']}

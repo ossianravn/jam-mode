@@ -6,7 +6,8 @@ from typing import Any
 from .controller import spawn_controller
 from .paths import campaign_dir
 from .routing import inspect_managed_agents
-from .service_boundaries import _assert_single_live_campaign
+from .resumption import prepare_resumption
+from .service_boundaries import _assert_agent_update_safe
 from .service_refresh import refresh_campaign_routing
 from .store import Store
 from .util import process_is_alive, utc_now
@@ -48,13 +49,15 @@ def pause_campaign(identifier: str | None = None) -> dict[str, Any]:
 
 
 def resume_campaign(
-    identifier: str | None = None, *, guidance: str | None = None
+    identifier: str | None = None, *, guidance: str | None = None,
+    max_subagents: int | None = None,
 ) -> dict[str, Any]:
     store = Store()
     campaign = store.get_campaign(identifier or "active")
-    _assert_single_live_campaign(store, exclude_id=campaign["id"])
-    if guidance:
-        store.append_guidance(campaign["id"], guidance)
+    _assert_agent_update_safe(store, campaign=campaign)
+    campaign = prepare_resumption(
+        store, campaign, max_subagents=max_subagents, guidance=guidance
+    )
     refresh = refresh_campaign_routing(campaign["id"])
     updated = store.transition_campaign(
         campaign["id"],

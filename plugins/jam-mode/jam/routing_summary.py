@@ -36,7 +36,7 @@ def routing_prompt_summary(resolved: dict[str, Any]) -> str:
 
 
 def strategy_routing_instructions(resolved: dict[str, Any]) -> str:
-    routes = resolved.get("strategy_routes") or STRATEGY_AGENT_ROUTES
+    routes = STRATEGY_AGENT_ROUTES
     role_entries = resolved.get("roles") or {}
     lines = [
         "Use the following exact named custom agents when the selected strategy calls for them:",
@@ -55,16 +55,16 @@ def strategy_routing_instructions(resolved: dict[str, Any]) -> str:
             description = (
                 f"choose exactly one writer ({names[0]} or {names[1]}), then {names[2]}"
             )
+        elif strategy == "duo_independent":
+            description = f"{names[0]} and {names[1]} independently in parallel, then parent synthesis"
         elif strategy in {"parallel_explore", "map_reduce"}:
-            description = f"one or more independent instances of {names[0]} within the concurrency limit"
-        elif names:
-            description = " → ".join(names)
+            description = f"at least two independent instances of {names[0]} within the concurrency limit"
         else:
-            description = "parent only"
+            description = " → ".join(names)
         lines.append(f"- {strategy}: {description}")
     lines.extend(
         [
-            "Do not substitute Codex's unnamed default/worker/explorer agents for a routed JAM role unless the named agent is genuinely unavailable; record any substitution in the report.",
+            "Use the routed JAM roles. If a required named agent is unavailable, stop with needs_user_input and explain the missing contribution.",
             "The parent thread remains the orchestrator and final synthesizer. Child agents must not decide campaign continuation or spawn nested agents.",
             "Never run jam_implementer and jam_producer concurrently. There is exactly one writer for a shared checkout.",
         ]

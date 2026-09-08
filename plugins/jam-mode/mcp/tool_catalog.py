@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from jam.contracts import TASK_PROFILES
+from jam.resumption import RESUME_OPTIONS
 
 from .tool_schema import (
     CAMPAIGN_ID_ARG,
@@ -71,7 +72,7 @@ TOOLS: list[dict[str, Any]] = [
                     "default": 0.55,
                 },
                 "max_low_progress": {"type": "integer", "minimum": 1, "maximum": 20, "default": 2},
-                "max_subagents": {"type": "integer", "minimum": 1, "maximum": 16, "default": 2},
+                "max_subagents": {"type": "integer", "minimum": 2, "maximum": 16, "default": 2},
                 "memory_paths": {"type": "array", "items": {"type": "string"}, "default": []},
                 "tags": {"type": "array", "items": {"type": "string"}, "default": []},
             },
@@ -193,10 +194,7 @@ TOOLS: list[dict[str, Any]] = [
         _schema(
             {
                 **CAMPAIGN_ID_ARG,
-                "guidance": {
-                    "type": "string",
-                    "description": "Optional new user guidance appended to campaign state before replanning.",
-                },
+                **RESUME_OPTIONS,
             }
         ),
         read_only=False,
