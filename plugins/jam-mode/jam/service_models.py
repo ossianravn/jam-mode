@@ -33,10 +33,14 @@ def list_models(*, include_hidden: bool = False) -> dict[str, Any]:
     }
 
 
-def list_model_catalog(*, include_hidden: bool = False) -> dict[str, Any]:
+def list_model_catalog(*, include_hidden: bool = False, harness: str = "codex") -> dict[str, Any]:
     """Compatibility/public alias used by the CLI and MCP surface."""
 
-    return list_models(include_hidden=include_hidden)
+    if harness == "codex":
+        return list_models(include_hidden=include_hidden)
+    from .harnesses.registry import get_adapter
+    result = get_adapter(harness).models()
+    return {**result, "harness": harness, "count": len(result["models"])}
 
 
 def preview_model_routing(
@@ -95,7 +99,7 @@ def get_model_routing(
             "resolved": campaign.get("resolved_routing") or {},
             "catalog": campaign.get("model_catalog_snapshot") or [],
             "warnings": campaign.get("routing_warnings") or [],
-            "managed_agents": inspect_managed_agents(),
+            "managed_agents": inspect_managed_agents() if campaign.get("harness", "codex") == "codex" else {},
         }
     return preview_model_routing(validate=validate)
 
@@ -120,6 +124,13 @@ def configure_model_routing(
     campaign: dict[str, Any] | None = None
     if identifier:
         campaign = store.get_campaign(identifier)
+        if campaign.get("harness", "codex") != "codex":
+            from .harnesses.routing import configure_native_routing
+            return configure_native_routing(store, campaign, validate=validate, reset=reset,
+                                            model_policy=model_policy, model_validation=model_validation,
+                                            model=model, effort=effort, role_models=role_models,
+                                            role_efforts=role_efforts, allow_child_ultra=allow_child_ultra,
+                                            allow_parent_ultra=allow_parent_ultra)
         _assert_agent_update_safe(store, campaign=campaign)
         if reset:
             base = load_routing_config(create=True)

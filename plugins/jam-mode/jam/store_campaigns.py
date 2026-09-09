@@ -4,6 +4,7 @@ import sqlite3
 from typing import Any
 
 from .lifecycle import LIVE_CAMPAIGN_STATUSES
+from .harnesses.registry import validate_harness
 from .store_core import (
     CAMPAIGN_WITH_EPISODE_STATE,
     CampaignNotFound,
@@ -23,6 +24,7 @@ class CampaignStoreMixin:
             "objective": str(config["objective"]).strip(),
             "task_profile": str(config.get("task_profile") or "adaptive"),
             "workspace": str(config["workspace"]),
+            "harness": validate_harness(config.get("harness", "codex")),
             "authorized_scope": json_dumps(
                 config.get("operating_boundaries")
                 or config.get("authorized_scope")

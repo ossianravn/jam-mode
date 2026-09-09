@@ -4,13 +4,14 @@ import argparse
 import os
 
 from .contracts import TASK_PROFILES
+from .harnesses.registry import HARNESS_IDS
 from .resumption import add_resume_parser
 from .routing import MODEL_POLICIES, MODEL_VALIDATION_MODES
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="jam", description="JAM Mode campaign controller for Codex"
+        prog="jam", description="JAM Mode campaign controller"
     )
     parser.add_argument("--json", action="store_true", dest="json_output")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -18,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     start = sub.add_parser("start", help="Create and start a fresh JAM campaign")
     start.add_argument("--objective", "-o", required=True)
     start.add_argument("--workspace", "-C", default=os.getcwd())
+    start.add_argument("--harness", choices=HARNESS_IDS, default="codex")
     boundaries = start.add_mutually_exclusive_group()
     boundaries.add_argument(
         "--boundaries",
@@ -31,13 +33,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-policy",
         choices=MODEL_POLICIES,
         default=None,
-        help="Role routing preset. Omit to use the saved JAM routing defaults.",
+        help="Routing policy. Defaults to saved Codex settings, or inherit for other harnesses.",
     )
     start.add_argument(
         "--model-validation",
         choices=(*MODEL_VALIDATION_MODES, "none"),
         default=None,
-        help="Validation mode. Omit to use the saved JAM routing defaults.",
+        help="Validation mode. Defaults to saved Codex settings, or strict for other harnesses.",
     )
     start.add_argument("--model", help="Parent/synthesizer model override.")
     start.add_argument("--effort", help="Parent/synthesizer reasoning-effort override.")
@@ -96,9 +98,11 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("campaign", nargs="?")
 
     sub.add_parser("list", help="List campaigns")
+    sub.add_parser("harnesses", help="Inspect installed coding harnesses and adapter capabilities")
 
-    models = sub.add_parser("models", help="List models and reasoning efforts advertised by Codex")
+    models = sub.add_parser("models", help="List the selected harness's advertised models and availability limits")
     models.add_argument("--hidden", action="store_true", help="Include hidden catalog entries.")
+    models.add_argument("--harness", choices=HARNESS_IDS, default="codex")
 
     routing = sub.add_parser(
         "routing",
@@ -154,5 +158,6 @@ def build_parser() -> argparse.ArgumentParser:
     log.add_argument("campaign", nargs="?")
     log.add_argument("--tail", type=int, default=120)
 
-    sub.add_parser("doctor", help="Check local JAM/Codex prerequisites")
+    doctor = sub.add_parser("doctor", help="Check local JAM/harness prerequisites")
+    doctor.add_argument("--harness", choices=HARNESS_IDS, default="codex")
     return parser

@@ -108,13 +108,10 @@ def collect_memories(
     campaign: dict[str, Any], current_objective: str, *, max_excerpt_chars: int = 42000
 ) -> dict[str, Any]:
     home = codex_home_path()
-    roots = normalize_paths(
-        [
-            home / "memories",
-            home / "memories_extensions" / "chronicle",
-            *(campaign.get("memory_paths") or []),
-        ]
-    )
+    native_roots = [home / "memories", home / "memories_extensions" / "chronicle"]
+    if campaign.get("harness", "codex") != "codex":
+        native_roots = []
+    roots = normalize_paths([*native_roots, *(campaign.get("memory_paths") or [])])
     files = _candidate_files(roots)
     terms = _terms(campaign.get("objective", ""), current_objective)
     inventory: list[dict[str, Any]] = []

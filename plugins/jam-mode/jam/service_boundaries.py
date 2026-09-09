@@ -18,7 +18,7 @@ def _default_boundaries(
         )
     allowed_actions = [
         "Read and inspect files inside the workspace.",
-        "Run local commands and validation permitted by the Codex sandbox.",
+        "Run local commands and validation permitted by the selected harness's execution controls.",
     ]
     if sandbox == "workspace-write":
         allowed_actions.append(

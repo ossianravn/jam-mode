@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from typing import Any
+from jam.harnesses.registry import harness_doctor, list_harnesses
 
 from jam.service import (
     add_memory_path,
     campaign_log,
     configure_model_routing,
-    doctor,
     get_model_routing,
     list_campaigns,
     list_model_catalog,
@@ -33,6 +33,7 @@ def _invoke(name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str]:
         result = start_campaign(
             objective=str(args["objective"]),
             workspace=str(args["workspace"]),
+            harness=str(args.get("harness", "codex")),
             operating_boundaries=args.get("operating_boundaries"),
             authorized_scope=args.get("authorized_scope"),
             task_profile=str(args.get("task_profile") or "adaptive"),
@@ -59,16 +60,20 @@ def _invoke(name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str]:
         campaign = result["campaign"]
         payload = {
             "campaign_id": campaign["id"],
+            "harness": campaign.get("harness", "codex"),
             "status": campaign["status"],
             "controller_pid": result.get("controller_pid"),
             "message": (
-                "JAM campaign created. Its controller will create one fresh Codex session at a time and "
+                "JAM campaign created. Its controller will create one fresh harness session at a time and "
                 "adapt the task profile and strategy per episode using the campaign's validated named-agent roster."
             ),
         }
         return payload, f"Started JAM campaign {campaign['id']} ({campaign['status']})."
 
     identifier = args.get("campaign_id")
+    if name == "jam_list_harnesses":
+        payload = list_harnesses()
+        return payload, "Inspected configured coding harnesses; no model tasks were run."
     if name == "jam_status":
         payload = _status_payload(identifier)
         campaign = payload["campaign"]
@@ -77,8 +82,9 @@ def _invoke(name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str]:
         campaigns = [_public_campaign(c) for c in list_campaigns()]
         return {"campaigns": campaigns}, f"Found {len(campaigns)} JAM campaign(s)."
     if name == "jam_list_models":
-        payload = list_model_catalog(include_hidden=bool(args.get("include_hidden", False)))
-        return payload, f"Codex advertised {payload['count']} model(s)."
+        payload = list_model_catalog(include_hidden=bool(args.get("include_hidden", False)),
+                                     harness=str(args.get("harness", "codex")))
+        return payload, f"Harness catalogue contains {payload['count']} model(s); see availability metadata."
     if name == "jam_model_routing":
         payload = get_model_routing(args.get("campaign_id"))
         resolved = payload.get("resolved") or {}
@@ -146,7 +152,7 @@ def _invoke(name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str]:
         payload = campaign_log(identifier, tail=int(args.get("tail", 120)))
         return payload, payload["text"] or f"No controller log at {payload['path']}"
     if name == "jam_doctor":
-        payload = doctor()
+        payload = harness_doctor(str(args.get("harness", "codex")))
         lines = [
             f"{'OK' if item['ok'] else 'FAIL'} {item['name']}: {item['detail']}"
             for item in payload["checks"]

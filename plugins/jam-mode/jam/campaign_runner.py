@@ -6,7 +6,9 @@ import traceback
 import uuid
 from typing import Any
 
-from .appserver import AppServerError, run_episode_turn
+from .appserver import AppServerError
+from .harnesses.registry import run_episode_turn
+from .harnesses.types import HarnessError
 from .context import build_context_pack
 from .controller_decisions import (
     _budget_gate,
@@ -113,7 +115,7 @@ def run_campaign(campaign_id: str) -> int:
                 break
 
             resolved_routing = campaign.get("resolved_routing") or {}
-            if resolved_routing:
+            if resolved_routing and campaign.get("harness", "codex") == "codex":
                 ensure_managed_agents(
                     resolved_routing, workspace=campaign["workspace"]
                 )
@@ -214,7 +216,7 @@ def run_campaign(campaign_id: str) -> int:
             time.sleep(1.0)
         _write_campaign_summary(store, campaign_id)
         return 0
-    except (CampaignNotFound, StoreError, AppServerError, RoutingError, OSError, TimeoutError) as exc:
+    except (CampaignNotFound, StoreError, AppServerError, HarnessError, RoutingError, OSError, TimeoutError) as exc:
         error_text = f"{type(exc).__name__}: {exc}"
         cleanup_error = _record_campaign_failure(store, campaign_id, error_text)
         message = error_text

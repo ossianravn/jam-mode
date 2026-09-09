@@ -4,6 +4,7 @@ from typing import Any
 
 from jam.contracts import TASK_PROFILES
 from jam.resumption import RESUME_OPTIONS
+from jam.harnesses.registry import HARNESS_IDS
 
 from .tool_schema import (
     CAMPAIGN_ID_ARG,
@@ -26,10 +27,11 @@ TOOLS: list[dict[str, Any]] = [
         _schema(
             {
                 "objective": {"type": "string", "minLength": 1},
+                "harness": {"type": "string", "enum": list(HARNESS_IDS), "default": "codex"},
                 "workspace": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Absolute existing project/workspace directory as seen by this Codex host.",
+                    "description": "Absolute existing project/workspace directory on the execution host.",
                 },
                 "operating_boundaries": {
                     "oneOf": [{"type": "object"}, {"type": "string", "minLength": 1}],
@@ -82,6 +84,7 @@ TOOLS: list[dict[str, Any]] = [
         output_schema=_schema(
             {
                 "campaign_id": {"type": "string"},
+                "harness": {"type": "string", "enum": list(HARNESS_IDS)},
                 "status": {"type": "string"},
                 "controller_pid": {"type": ["integer", "null"]},
                 "message": {"type": "string"},
@@ -105,15 +108,16 @@ TOOLS: list[dict[str, Any]] = [
     ),
     _tool(
         "jam_list_models",
-        "List Codex models",
-        "Read the models and reasoning efforts advertised by this installed Codex account through App Server model/list.",
+        "List harness models",
+        "Read the selected harness's model catalogue and availability limitations without running a model task.",
         _schema(
             {
                 "include_hidden": {
                     "type": "boolean",
                     "default": False,
                     "description": "Include hidden catalog entries.",
-                }
+                },
+                "harness": {"type": "string", "enum": list(HARNESS_IDS), "default": "codex"},
             }
         ),
         read_only=True,
@@ -162,7 +166,7 @@ TOOLS: list[dict[str, Any]] = [
         "Refresh JAM campaign routing",
         (
             "Revalidate and rematerialize a paused campaign's existing requested roster against the current "
-            "Codex model catalog without changing its configured policy or overrides."
+            "selected harness without changing its configured policy or overrides."
         ),
         _schema(
             {
@@ -181,7 +185,7 @@ TOOLS: list[dict[str, Any]] = [
         "jam_pause_after_current",
         "Pause JAM after current episode",
         (
-            "Disable continuation without interrupting the active Codex session. The current episode ends "
+            "Disable continuation without interrupting the active harness session. The current episode ends "
             "naturally, its handoff is saved, and no replacement session starts."
         ),
         _schema(CAMPAIGN_ID_ARG),
@@ -237,11 +241,15 @@ TOOLS: list[dict[str, Any]] = [
     _tool(
         "jam_doctor",
         "Check JAM prerequisites",
-        "Check Python, Codex CLI, App Server, state directories, and plugin installation prerequisites.",
-        _schema(),
+        "Check the selected harness's local prerequisites and report adapter compatibility limitations.",
+        _schema({"harness": {"type": "string", "enum": list(HARNESS_IDS), "default": "codex"}}),
         read_only=True,
     ),
 ]
+
+TOOLS.append(_tool("jam_list_harnesses", "List JAM harnesses",
+                   "Inspect local coding harnesses and supported adapter capabilities without running a model task.",
+                   _schema(), read_only=True))
 
 READ_ONLY_CHILD_TOOLS = {
     "jam_status",
@@ -250,4 +258,5 @@ READ_ONLY_CHILD_TOOLS = {
     "jam_model_routing",
     "jam_campaign_log",
     "jam_doctor",
+    "jam_list_harnesses",
 }

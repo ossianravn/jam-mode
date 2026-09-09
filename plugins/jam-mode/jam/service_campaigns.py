@@ -24,7 +24,7 @@ def get_status(identifier: str | None = None) -> dict[str, Any]:
         "last_episode": last,
         "episodes": episodes,
         "campaign_directory": str(campaign_dir(campaign["id"])),
-        "managed_agents": inspect_managed_agents(),
+        "managed_agents": inspect_managed_agents() if campaign.get("harness", "codex") == "codex" else {},
     }
 
 

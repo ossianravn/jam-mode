@@ -78,12 +78,12 @@ MODEL_ROUTING_PROPERTIES = {
     "model_policy": {
         "type": "string",
         "enum": list(MODEL_POLICIES),
-        "description": "Role-routing preset. Omit to use the saved JAM default.",
+        "description": "Routing policy. Defaults to saved Codex settings, or inherit for other harnesses.",
     },
     "model_validation": {
         "type": "string",
         "enum": list(MODEL_VALIDATION_MODES),
-        "description": "Validate requested model/effort pairs against Codex model/list.",
+        "description": "Routing validation: Codex uses model/list; native adapters verify actual model evidence during execution.",
     },
     "model": {
         "type": "string",

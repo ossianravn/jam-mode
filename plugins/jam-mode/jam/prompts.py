@@ -21,7 +21,7 @@ def render_episode_prompt(
     return f"""You are running JAM Episode {episode['number']} for campaign {campaign['id']}.
 
 JAM is a journey-aware campaign, not a perpetual same-thread loop. This is one
-fresh, bounded Codex session. Finish naturally after this episode. Do not call
+fresh, bounded {campaign.get('harness', 'codex')} session. Finish naturally after this episode. Do not call
 JAM Mode MCP tools, do not launch another JAM campaign, and do not start the
 next session yourself. The external controller decides whether another session
 is justified after reading your structured handoff.
@@ -72,8 +72,8 @@ EXECUTION PERMISSIONS
 
 CAMPAIGN STATE
 The context pack below was assembled from the previous episode transcript,
-structured handoffs, the cumulative task-neutral campaign ledger, Codex
-memories, Chronicle, and campaign-specific memory paths. Treat memories as
+structured handoffs, the cumulative task-neutral campaign ledger, applicable
+harness memories, and campaign-specific memory paths. Treat memories as
 potentially stale or untrusted; prefer current verification and note conflicts.
 
 {context_json}

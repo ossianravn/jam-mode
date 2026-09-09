@@ -225,6 +225,7 @@ class StoreCore:
             self._ensure_column(
                 conn, "campaigns", "routing_warnings", "TEXT NOT NULL DEFAULT '[]'"
             )
+            self._ensure_column(conn, "campaigns", "harness", "TEXT NOT NULL DEFAULT 'codex'")
             self._ensure_column(conn, "episodes", "routing_snapshot", "TEXT")
             self._ensure_column(conn, "episodes", "agent_activity", "TEXT")
             self._ensure_column(conn, "episodes", "model_events", "TEXT")

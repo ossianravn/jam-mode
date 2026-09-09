@@ -4,13 +4,13 @@ import json
 import sys
 
 from .appserver import AppServerError
+from .harnesses.registry import harness_doctor, list_harnesses
 from .cli_output import _parse_assignments, _print_roster, _print_status
 from .cli_parser import build_parser
 from .service import (
     add_memory_path,
     campaign_log,
     configure_model_routing,
-    doctor,
     get_model_routing,
     get_status,
     list_campaigns,
@@ -33,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
             result = start_campaign(
                 objective=args.objective,
                 workspace=args.workspace,
+                harness=args.harness,
                 operating_boundaries=args.boundaries,
                 authorized_scope=args.scope,
                 task_profile=args.profile,
@@ -60,8 +61,10 @@ def main(argv: list[str] | None = None) -> int:
             result = get_status(args.campaign)
         elif args.command == "list":
             result = {"campaigns": list_campaigns()}
+        elif args.command == "harnesses":
+            result = list_harnesses()
         elif args.command == "models":
-            result = list_model_catalog(include_hidden=args.hidden)
+            result = list_model_catalog(include_hidden=args.hidden, harness=args.harness)
         elif args.command == "routing":
             has_updates = any(
                 [
@@ -113,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "log":
             result = campaign_log(args.campaign, tail=args.tail)
         elif args.command == "doctor":
-            result = doctor()
+            result = harness_doctor(args.harness)
         else:
             parser.error("Unknown command")
             return 2
@@ -132,7 +135,15 @@ def main(argv: list[str] | None = None) -> int:
                     f"{campaign['id']}  {campaign['status']:<23} {enabled:<3} "
                     f"{campaign['episode_count']:>3}  {campaign['name']}"
                 )
+        elif args.command == "harnesses":
+            for item in result["harnesses"]:
+                print(f"{item['harness']}: {'supported' if item.get('supported') else 'unavailable/unsupported'}")
+                for limitation in item.get("limitations") or []:
+                    print(f"  {limitation}")
         elif args.command == "models":
+            print(f"Catalogue: {result.get('catalog_status', 'installed')}")
+            for warning in result.get("warnings") or []:
+                print(warning)
             for model in result["models"]:
                 efforts = ", ".join(model.get("supported_efforts") or []) or "not advertised"
                 flags = []

@@ -26,6 +26,9 @@ def render_strategy_instructions(campaign: dict[str, Any], hint: object) -> str:
     routes = strategy_routing_instructions(resolved)
     warnings = campaign.get("routing_warnings") or resolved.get("warnings") or []
     warning_text = "\n".join(f"- {warning}" for warning in warnings) or "- none"
+    writer = ("choose one appropriate writer from implementer and producer"
+              if campaign.get("harness", "codex") == "codex" else
+              "use implementer/producer for read-only proposals; the parent alone performs authorized edits")
     return f"""DUO IS THE DEFAULT STRATEGY
 Current strategy: {normalize_strategy(hint)}.
 Use duo_independent unless another multi-agent strategy is materially better
@@ -73,7 +76,7 @@ Routing warnings:
 Always delegate each bounded role to the exact JAM custom agent named above.
 Retain its configured model and effort. For parallel_explore and map_reduce,
 spawn at least two instances of the listed role. For planner_executor and
-execute_validate, choose one appropriate writer from implementer and producer.
+execute_validate, {writer}.
 If a required agent cannot start or finish, stop with needs_user_input and
 explain the missing contribution. Do not substitute a solo result or claim completion.
 

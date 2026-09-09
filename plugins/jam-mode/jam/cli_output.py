@@ -74,7 +74,7 @@ def _print_status(payload: dict[str, Any]) -> None:
         if handoff.get("user_question"):
             print(f"Question:     {handoff['user_question']}")
         if last.get("thread_id"):
-            print(f"Thread:       {last['thread_id']}")
+            print(f"Session:      {last['thread_id']} ({campaign.get('harness', 'codex')})")
         if last.get("agent_activity"):
             print(f"Subagents:    {len(last['agent_activity'])} collaboration call(s) recorded")
     warnings = campaign.get("routing_warnings") or []

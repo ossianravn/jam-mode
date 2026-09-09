@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add campaign-level harness selection for Codex, Claude Code, GitHub Copilot CLI, and OpenCode, preserved across resume. Existing campaigns default to Codex.
+- Add experimental signed-in native adapters with version/capability gates, native contribution evidence, scoped tool permissions, and bounded process cleanup. Live account-backed campaigns remain unverified; see `docs/harnesses.md` in the marketplace repository for compatibility limits.
+- Add CLI `harnesses`, `--harness` on start/models/doctor, and matching MCP inspection and selection. Keep Codex routing defaults and automatic memories specific to Codex campaigns.
 - Recognize current Codex `subAgentActivity` events when collecting agent activity and verifying episode completion. Require a direct child's nonempty final result, successful matching turn, and completion notification to the parent; preserve legacy collaboration-event support and Duo ordering checks.
 - Preserve completed contributions after informational messages. Invalidate previous results when a child starts another turn or receives an explicit follow-up assignment.
 

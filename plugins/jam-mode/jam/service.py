@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import TASK_PROFILES, normalize_task_profile
+from .harnesses.registry import validate_harness
 from .controller import spawn_controller
 from .episode_strategy import validate_agent_budget
 from .service_boundaries import (
@@ -39,6 +40,7 @@ def start_campaign(
     *,
     objective: str,
     workspace: str | None,
+    harness: str = "codex",
     operating_boundaries: Any | None = None,
     authorized_scope: Any | None = None,
     task_profile: str = "adaptive",
@@ -62,6 +64,7 @@ def start_campaign(
     memory_paths: list[str] | None = None,
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
+    harness = validate_harness(harness)
     objective = objective.strip()
     if not objective:
         raise ValueError("objective is required.")
@@ -100,6 +103,7 @@ def start_campaign(
     campaign_name = name or objective[:72]
     campaign_id = new_campaign_id(campaign_name)
     requested, resolved, catalog, agents = _prepare_routing(
+        harness=harness,
         workspace=workspace_path,
         model_policy=model_policy,
         model_validation=model_validation,
@@ -118,6 +122,7 @@ def start_campaign(
             "objective": objective,
             "task_profile": normalized_profile,
             "workspace": str(workspace_path),
+            "harness": harness,
             "operating_boundaries": boundaries,
             "success_criteria": success_criteria or "",
             "model": parent.get("model"),

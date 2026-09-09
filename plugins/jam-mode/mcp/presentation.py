@@ -12,6 +12,7 @@ def _public_campaign(campaign: dict[str, Any]) -> dict[str, Any]:
         "objective",
         "task_profile",
         "workspace",
+        "harness",
         "operating_boundaries",
         "success_criteria",
         "status",

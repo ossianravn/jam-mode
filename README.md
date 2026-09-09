@@ -1,6 +1,11 @@
-# JAM Mode 0.3 for Codex Desktop and CLI
+# JAM Mode
 
-JAM Mode is a local Codex plugin and companion controller for **bounded, adaptive campaigns across naturally ending fresh sessions**.
+JAM Mode is a local plugin and companion controller for **bounded, adaptive campaigns across naturally ending fresh sessions**.
+
+Campaigns can select Codex, Claude Code, GitHub Copilot CLI, or OpenCode. Each
+campaign keeps one harness across all episodes and resumes. Existing campaigns
+continue to use Codex. The new adapters use existing signed-in accounts; see
+[harness setup and current compatibility limits](docs/harnesses.md).
 
 A campaign keeps one durable objective while allowing the work to move through investigation, planning, implementation, review, validation, documentation, data processing, operations, content production, or closure. Before each episode, JAM reviews the previous transcript, structured handoffs, cumulative campaign state, relevant Codex memories, Chronicle entries, and campaign-specific memory paths. It then selects the next bounded objective, the task profile, and the smallest useful solo or multi-agent strategy.
 

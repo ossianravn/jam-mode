@@ -35,6 +35,7 @@ def _resolve_requested_routing(
 
 def _prepare_routing(
     *,
+    harness: str = "codex",
     workspace: Path,
     model_policy: str | None,
     model_validation: str | None,
@@ -45,6 +46,13 @@ def _prepare_routing(
     allow_child_ultra: bool | None,
     allow_parent_ultra: bool | None,
 ) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]], dict[str, str]]:
+    if harness != "codex":
+        from .harnesses.routing import prepare_native_routing
+        return prepare_native_routing(harness=harness, workspace=workspace, model_policy=model_policy,
+                                      model_validation=model_validation, parent_model=parent_model,
+                                      parent_effort=parent_effort, role_models=role_models,
+                                      role_efforts=role_efforts, allow_child_ultra=allow_child_ultra,
+                                      allow_parent_ultra=allow_parent_ultra)
     config = load_routing_config(create=True)
     requested = requested_routing_from_config(
         config,
@@ -72,6 +80,7 @@ def _charter_payload(
         "objective": campaign["objective"],
         "task_profile": campaign["task_profile"],
         "workspace": campaign["workspace"],
+        "harness": campaign.get("harness", "codex"),
         "operating_boundaries": campaign["operating_boundaries"],
         "success_criteria": campaign["success_criteria"],
         "created_at": campaign["created_at"],

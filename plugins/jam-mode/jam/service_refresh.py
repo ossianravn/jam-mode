@@ -42,6 +42,9 @@ def refresh_campaign_routing(
 
     store = Store()
     campaign = store.get_campaign(identifier or "active")
+    if campaign.get("harness", "codex") != "codex":
+        from .harnesses.routing import configure_native_routing
+        return configure_native_routing(store, campaign, validate=validate)
     _assert_agent_update_safe(store, campaign=campaign)
     requested = campaign.get("requested_routing") or {}
     if not requested:
