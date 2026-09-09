@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Recognize current Codex `subAgentActivity` events when collecting agent activity and verifying episode completion. Require a direct child's nonempty final result, successful matching turn, and completion notification to the parent; preserve legacy collaboration-event support and Duo ordering checks.
+- Preserve completed contributions after informational messages. Invalidate previous results when a child starts another turn or receives an explicit follow-up assignment.
+
 ## 0.3.2 — 2026-09-05
 
 - Changed economy, balanced, and quality presets to GPT-6-Astra for every role, preserving their reasoning-effort profiles.

@@ -9,6 +9,7 @@ from typing import Any
 
 from .appserver_session import AppServerSessionMixin, permission_profile_for_sandbox
 from .appserver_transport import AppServerError, AppServerTransport
+from .collaboration import COLLABORATION_ITEM_TYPES
 from .handoff_schema import HANDOFF_SCHEMA
 from .util import json_dumps
 
@@ -132,11 +133,13 @@ class AppServerClient(AppServerSessionMixin, AppServerTransport):
                         fallback_messages.append(text)
                         if item.get("phase") in {None, "final_answer"}:
                             final_messages.append(text)
-                elif item.get("type") in {"collabToolCall", "collabAgentToolCall"}:
+                elif item.get("type") in COLLABORATION_ITEM_TYPES:
                     item_id = str(item.get("id") or f"collab-{len(agent_activity_order) + 1}")
                     if item_id not in agent_activity_by_id:
                         agent_activity_order.append(item_id)
                     record = dict(item)
+                    record["threadId"] = event_params.get("threadId")
+                    record["turnId"] = event_params.get("turnId")
                     record["event"] = "completed" if method == "item/completed" else "started"
                     record["agent_name"] = self._agent_name_from_item(item)
                     agent_activity_by_id[item_id] = record
