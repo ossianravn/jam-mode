@@ -7,13 +7,65 @@ campaign keeps one harness across all episodes and resumes. Existing campaigns
 continue to use Codex. The new adapters use existing signed-in accounts; see
 [harness setup and current compatibility limits](docs/harnesses.md).
 
-A campaign keeps one durable objective while allowing the work to move through investigation, planning, implementation, review, validation, documentation, data processing, operations, content production, or closure. Before each episode, JAM reviews the previous transcript, structured handoffs, cumulative campaign state, relevant Codex memories, Chronicle entries, and campaign-specific memory paths. It then selects the next bounded objective, the task profile, and the smallest useful solo or multi-agent strategy.
+A campaign keeps one durable objective while allowing the work to move through investigation, planning, implementation, review, validation, documentation, data processing, operations, content production, or closure. Before each episode, JAM reviews the previous transcript, structured handoffs, cumulative campaign state, and explicit memory paths. Codex campaigns also load relevant Codex memories and Chronicle entries. JAM then selects the next bounded objective, task profile, and multi-agent strategy.
 
-Every episode ends normally. JAM saves a human-readable report and machine-readable handoff, applies operating-boundary, user-input, progress, expected-value, plateau, and budget gates, and creates another fresh Codex thread only when continuation is justified. Pausing JAM means **finish the current episode and do not start another**; it does not interrupt an active turn.
+Each episode uses a fresh session in the campaign's selected harness. JAM saves a human-readable report and machine-readable handoff, verifies child contributions, and applies operating-boundary, user-input, progress, expected-value, plateau, and budget gates before continuing. Pausing JAM means **finish the current episode and do not start another**; it does not interrupt an active turn. Errors and episode deadlines can end execution early.
 
-## New in 0.3: named-agent model routing
+## Campaign execution model
 
-JAM 0.3 adds a first-class routing layer for selecting the model and reasoning effort used by the parent and each delegated role.
+```mermaid
+flowchart TD
+    Start["CLI or MCP: objective, workspace, boundaries, budgets"] --> Campaign["Persist campaign and routing; freeze one harness"]
+    Campaign --> Plan["Check controls and budgets; plan from saved history"]
+    State[("SQLite state and episode artifacts")] -.-> Plan
+    Plan --> Select{"Selected harness"}
+    Select -->|codex| Codex["Codex App Server"]
+    Select -->|claude-code| Claude["Claude Code print mode"]
+    Select -->|copilot| Copilot["Copilot SDK protocol"]
+    Select -->|opencode| OpenCode["OpenCode native server"]
+    Codex --> Episode["Fresh session: parent and at least two direct children"]
+    Claude --> Episode
+    Copilot --> Episode
+    OpenCode --> Episode
+    Episode --> Evidence["Adapter translates native activity into contribution evidence"]
+    Evidence --> Verify["Controller validates handoff and successful child contributions"]
+    Verify --> Save["Save report, handoff, routing and execution evidence"]
+    Save --> State
+    Save --> Gates{"Continuation gates"}
+    Gates -->|"Useful next step within limits"| Plan
+    Gates -->|"Pause, stop, completion, input, error or budget"| Rest["Persist outcome; no next episode"]
+    Plan -->|"Already paused, stopped or out of budget"| Rest
+    Rest -->|"Explicit resume: same harness"| Plan
+```
+
+Only the selected adapter runs. The controller owns continuation; child agents cannot launch the next episode. Compatibility or execution failures stop the campaign without switching harnesses. Successful work requires substantive, delivered results from at least two distinct direct children; a parent's claim that delegation happened is insufficient. Blocked or needs-input handoffs can stop for user intervention without claiming successful work.
+
+## Choose a harness
+
+Harness selection controls how JAM runs sessions and agents. Model selection controls which model that harness uses: selecting a Claude model through Copilot still creates a Copilot campaign. Mixed-harness agents are deferred.
+
+| Harness | Implemented contract | Account and main limits |
+|---|---|---|
+| `codex` (default) | Existing Codex App Server integration | Existing Codex account; Codex routing presets and managed agents. Historical campaigns retain this harness. |
+| `claude-code` | Experimental; Claude Code 2.1.219+ with forwarded child events | Existing personal Pro/Max sign-in on unmanaged native Windows/Linux. WSL, macOS, and managed accounts are refused. |
+| `copilot` | Experimental; Copilot CLI 1.0.83, SDK protocol 3 | Existing Copilot sign-in. Other CLI versions and per-role effort overrides are refused. |
+| `opencode` | Experimental; OpenCode 1.18.30 | Existing GitHub Copilot OAuth in OpenCode. Requires `github-copilot/<model-id>`; other providers and effort variants are unsupported. |
+
+The three new adapters have protocol and process tests, but no live account-backed JAM campaign has been verified. They use existing sign-in and do not install tools, log in, or fall back to direct provider API keys. The parent owns authorized edits and all children have read tools only. Shell commands are unavailable, so these adapters cannot run executable tests. Copilot and OpenCode also reject task network access. See [harness setup and limits](docs/harnesses.md) before starting.
+
+From the repository root, inspect support without running model tasks:
+
+```bash
+python3 plugins/jam-mode/scripts/jam.py harnesses
+python3 plugins/jam-mode/scripts/jam.py doctor --harness claude-code
+python3 plugins/jam-mode/scripts/jam.py models --harness copilot
+```
+
+Use Python 3.11 or later (`python` or `py -3` on Windows). Python and the harness executable must run on the same host. The portable launcher works without the Codex plugin; an installed `jam` command accepts the same arguments. [INSTALL.md](INSTALL.md) covers the Codex plugin installation, and the [MCP setup](docs/harnesses.md#calling-jam-through-mcp) covers other clients.
+
+## Codex model routing
+
+For Codex campaigns, JAM provides a routing layer for selecting the model and reasoning effort used by the parent and each delegated role.
 
 - Five routing policies: `inherit`, `economy`, `balanced`, `quality`, and `custom`.
 - Per-role model and reasoning-effort overrides.
@@ -28,7 +80,7 @@ JAM 0.3 adds a first-class routing layer for selecting the model and reasoning e
 
 Model IDs and effort levels in a preset are requests, not assumptions. With the default `strict` validation, JAM asks the installed Codex client which models and reasoning efforts are available and refuses to start unless the requested roster is available exactly. `fallback` is an explicit opt-in that permits model substitutions.
 
-## Default balanced roster
+## Default Codex balanced roster
 
 A fresh installation uses the `balanced` policy with `strict` validation:
 
@@ -47,7 +99,7 @@ A fresh installation uses the `balanced` policy with `strict` validation:
 
 `economy`, `balanced`, and `quality` all use GPT-6-Astra. They differ only in reasoning effort: economy requests lower effort, while quality requests higher effort. `inherit` leaves every role to ordinary Codex inheritance. `custom` provides an empty base for explicit role assignments.
 
-## Routing validation
+## Codex routing validation
 
 | Mode | Behavior |
 |---|---|
@@ -90,11 +142,10 @@ operations planning → user approval → execute_validate → closure
 
 ## Adaptive strategies and named routes
 
-Top-level JAM episodes are serial. Inside an episode, the parent may delegate genuinely independent work and then synthesize the results.
+Top-level JAM episodes are serial. Inside an episode, `duo_independent` is the default: an explorer and critic investigate independently before the parent synthesizes their findings and performs authorized work. Every strategy requires at least two distinct direct children. Solo execution is not an available fallback.
 
 | Strategy | Named-agent route |
 |---|---|
-| `solo` | Parent only |
 | `parallel_explore` | `jam_explorer` × N → parent synthesis |
 | `critique_synthesize` | `jam_critic` + `jam_reviewer` → parent |
 | `map_reduce` | `jam_bulk_worker` × N → parent aggregation |
@@ -106,29 +157,31 @@ Top-level JAM episodes are serial. Inside an episode, the parent may delegate ge
 | `discover_reproduce` | `jam_explorer` + `jam_validator` → parent |
 | `evidence_arbitration` | `jam_reviewer` + `jam_critic` → parent |
 | `reorientation` | `jam_planner` + `jam_critic` → parent |
-| `closure` | `jam_closer` → parent |
+| `closure` | `jam_closer` + `jam_reviewer` → parent |
 
-The route is a deterministic baseline. The parent may omit a role that is unnecessary for the bounded episode, but it is instructed not to silently replace a routed named role with an anonymous worker. There is never more than one writer in a shared checkout.
+The route is a deterministic baseline. Independent assignments can run together; dependent roles run in order. `parallel_explore` and `map_reduce` use at least two instances of the listed role. A missing contribution prevents successful completion; stale results, failed or cancelled children, and nested helpers cannot stand in for the two required direct children.
+
+There is never more than one writer in a shared checkout. For Claude Code, Copilot, and OpenCode, implementer and producer roles return read-only proposals and the parent performs all authorized edits. Codex can assign one child writer where the chosen strategy calls for it.
 
 ## Included components
 
 - A local Codex marketplace and plugin manifest.
 - A `$jam-mode` / `@JAM Mode` skill.
 - A dependency-free stdio MCP server exposing campaign and routing controls.
-- A detached Python controller that uses `codex app-server`.
-- One fresh App Server thread per episode and a structured handoff requested through `outputSchema`.
+- A detached Python controller with Codex, Claude Code, Copilot, and OpenCode execution adapters.
+- One fresh harness session per episode, a structured handoff, and verified child-contribution evidence.
 - A SQLite store shared by Desktop, CLI, MCP, and detached controllers.
 - A `jam` terminal command.
 - WSL/Linux and native Windows installers and uninstallers.
-- Automated unit, MCP smoke, protocol, migration, installer, and fake App Server integration tests.
+- Automated unit, MCP smoke, protocol, migration, installer, fake harness transport, and process-lifecycle tests.
 
-JAM intentionally permits one live campaign and one active top-level episode at a time. The campaign’s `max_subagents` setting caps requested parallelism inside an episode.
+JAM intentionally permits one live campaign and one active top-level episode at a time. The campaign’s `max_subagents` setting caps requested parallelism inside an episode and must be between 2 and 16.
 
 # Installation
 
 See [INSTALL.md](INSTALL.md) for the full guide.
 
-## Windows Desktop with WSL2 CLI — recommended
+## Codex Windows Desktop with WSL2 CLI
 
 Use the same Codex host for Desktop and CLI. In Codex Desktop, switch the agent runtime to **WSL**, restart Desktop, and point WSL at the Windows Codex home:
 
@@ -164,7 +217,9 @@ jam routing
 
 The native installer creates `jam.cmd` under `%CODEX_HOME%\bin` by default. Add that directory to `PATH` when necessary.
 
-# Configure model routing
+# Configure Codex model routing
+
+This section describes Codex presets, account-catalog validation, Ultra, and managed agent files. Claude Code, Copilot, and OpenCode default independently to `inherit` with `strict` validation and accept `inherit`/`custom` policies. Their adapters check observed model identity during execution; cross-model fallback and Codex Ultra settings are unsupported. See [native routing details](docs/harnesses.md#start-and-resume).
 
 ## Inspect the installed model catalog
 
@@ -226,7 +281,22 @@ JAM refuses to rewrite its shared custom-agent files while any campaign episode 
 
 # Start campaigns
 
-## Balanced adaptive software-delivery campaign
+## Signed-in Claude Code campaign
+
+After signing in separately and checking compatibility on the execution host:
+
+```bash
+python3 plugins/jam-mode/scripts/jam.py start \
+  --harness claude-code \
+  --workspace /absolute/path/to/project \
+  --objective "Review the design, compare independent findings, and recommend the next change." \
+  --max-episodes 1 \
+  --max-subagents 2
+```
+
+Starting consumes the selected account's normal usage. Campaigns default to read-only; add `--sandbox workspace-write` for authorized edits. Use `--harness copilot` for Copilot, or `--harness opencode --model github-copilot/<model-id>` with a model available through your OpenCode login. The harness is immutable after creation, including on resume. Omit `--harness` to use Codex.
+
+## Codex balanced adaptive software-delivery campaign
 
 ```bash
 jam start \
@@ -244,7 +314,7 @@ jam start \
 
 For ordinary offline workspace work, omitted operating boundaries become conservative local defaults.
 
-## Campaign-level routing overrides
+## Codex campaign-level routing overrides
 
 ```bash
 jam start \
@@ -323,20 +393,20 @@ jam doctor
 ```
 
 - `pause`: the active episode finishes naturally; no successor starts.
-- `resume`: revalidates the frozen roster, rematerializes managed agents, reviews persisted state, and plans a fresh episode.
+- `resume`: keeps the saved harness, revalidates its routing, reviews persisted state, and plans a fresh episode. Codex also rematerializes its managed agents.
 - `stop`: ends autonomous continuation after the active episode; an explicit later resume can reopen the campaign.
-- `status`: shows campaign state, latest episode, selected profile/strategy, parent model, routing warnings, thread id, and artifacts.
+- `status`: shows the saved harness, campaign state, latest episode, selected profile/strategy, parent model, routing warnings, session id, and artifacts.
 
 # Persistent state and artifacts
 
-By default, JAM stores state under `$CODEX_HOME/jam-mode`:
+By default, JAM stores state under `$CODEX_HOME/jam-mode` (or `~/.codex/jam-mode`). Set `JAM_HOME` to use another directory; all clients must share it to see the same campaigns.
 
 ```text
 config.toml                         global routing defaults
-jam.sqlite3                        campaign and episode state
+jam.db                             campaign and episode state
 campaigns/<campaign-id>/charter.json
 campaigns/<campaign-id>/campaign.md
-campaigns/<campaign-id>/episodes/NNN/
+campaigns/<campaign-id>/episodes/NNNN/
   context.json
   prompt.md
   events.jsonl
@@ -349,11 +419,11 @@ campaigns/<campaign-id>/episodes/NNN/
   app-server.stderr.log
 ```
 
-The campaign stores both the **requested** roster and the **resolved** roster. Episode artifacts snapshot the roster actually intended for that episode. App Server collaboration and model events are retained separately so a reroute, unavailable model, or incomplete agent observation is not misrepresented as proof that the requested model executed exactly as configured.
+The campaign stores its harness and both the **requested** and **resolved** rosters. Episode artifacts snapshot the intended roster and retain contribution and model observations separately. The three new adapters also retain native logs alongside canonical evidence; token usage may be unavailable. The shared stderr filename remains `app-server.stderr.log` for all harnesses.
 
-Managed custom-agent files are written to `$CODEX_HOME/agents/jam_*.toml`. JAM refuses to overwrite an unmarked file with the same name. It also refuses to start in a workspace containing `.codex/agents/jam_*.toml`, because project-scoped files would override the managed personal agents.
+For Codex, managed custom-agent files are written to `$CODEX_HOME/agents/jam_*.toml`. JAM refuses to overwrite an unmarked file with the same name. It also refuses to start a Codex campaign in a workspace containing `.codex/agents/jam_*.toml`, because project-scoped files would override the managed personal agents. The other adapters prepare their own scoped agent configuration and do not write Codex agent files.
 
-A role's `sandbox_mode` is a custom-agent default, not an unconditionally stronger permission boundary: live turn/session permission overrides can supersede it. JAM therefore repeats the role boundary in each managed agent's developer instructions and still applies the campaign sandbox and operating-boundary checks at the parent/controller level.
+A Codex role's `sandbox_mode` is a custom-agent default, not an unconditionally stronger permission boundary: live turn/session permission overrides can supersede it. JAM therefore repeats the role boundary in each managed agent's developer instructions and still applies the campaign sandbox and operating-boundary checks at the parent/controller level. The other adapters enforce tool permissions through their native harness; these controls do not constitute an OS sandbox.
 
 # Upgrade from 0.1 or 0.2
 
@@ -369,7 +439,7 @@ or:
 .\plugins\jam-mode\scripts\install-windows.ps1
 ```
 
-Existing SQLite state is migrated in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 task-general campaigns receive the new routing fields when the database is opened. The installer creates a default routing config when one does not exist and materializes the JAM-managed agent files without requiring a live model-catalog call; campaign start and resume perform account-specific validation.
+Existing SQLite state is migrated in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 task-general campaigns receive the new routing fields when the database is opened. Campaigns created before harness selection default to `codex`. The installer creates a default routing config when one does not exist and materializes the JAM-managed agent files without requiring a live model-catalog call; Codex campaign start and resume perform account-specific validation.
 
 A backup before any upgrade is prudent:
 
@@ -396,13 +466,14 @@ The uninstallers remove the plugin, marketplace copy, companion command, and onl
 # Safety and operating model
 
 - One active top-level campaign episode at a time.
-- Fresh thread for every episode.
+- Fresh session for every episode, using the campaign's saved harness.
+- Two distinct direct child contributions required for successful work; the parent owns final synthesis.
 - No autonomous scope expansion.
 - One writer in a shared checkout.
 - Child agents cannot control campaign continuation and are instructed not to invoke JAM tools.
-- Child Ultra is opt-in.
+- Codex child Ultra is opt-in; nested helpers do not replace required direct children.
 - Routing changes are blocked while a campaign episode is live.
-- Network access requires explicit boundaries.
+- Task network access requires explicit boundaries and adapter support.
 - The parent, not a child agent, synthesizes the episode result and writes the campaign handoff.
 - Continuation is controlled by deterministic gates outside the model turn.
 
@@ -419,8 +490,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 bash -n scripts/install-wsl.sh scripts/uninstall-wsl.sh
 ```
 
-The suite covers plugin layout, MCP restrictions, App Server protocol handling, model-catalog pagination, routing policies, effort fallback, Ultra gates, managed-agent collision safety, global and campaign routing updates, database migration, structured handoffs, continuation gates, transcript/memory handling, a complete fake App Server episode, and WSL installer behavior.
+The suite covers plugin layout, MCP restrictions, App Server protocol handling, model-catalog pagination, routing policies, effort fallback, Ultra gates, managed-agent collision safety, global and campaign routing updates, database migration, structured handoffs, continuation gates, transcript/memory handling, a complete fake App Server episode, and WSL installer behavior. Harness tests cover persisted selection, native protocol translation, stale and failed child evidence, parent/child tool permissions, adapter transport wiring, and subprocess cleanup/deadlines.
 
-# Environment limitation
+# Verification limits
 
-This package is a local reference implementation. The release build environment did not provide an authenticated Codex installation, a live Codex Desktop host, or native Windows PowerShell. No real model turn, live Desktop plugin load, or native Windows installer execution was performed there. App Server and marketplace command integration are covered with deterministic protocol-faithful fakes. Run `jam doctor`, `jam models`, and `jam routing` on the target machine after installation and after significant Codex updates.
+The harness implementation was checked with synthetic protocol fixtures, fake transports, local process tests, and replay of recorded Codex campaign evidence. These checks do not establish a live account-backed campaign for Claude Code, Copilot, or OpenCode. Installed versions and account access can differ from the implemented contracts. Run `jam harnesses`, `jam doctor --harness <id>`, and `jam models --harness <id>` on the target host after installation or harness updates; discovery does not run model tasks. See [compatibility and observed availability](docs/harnesses.md#setup) for details.
