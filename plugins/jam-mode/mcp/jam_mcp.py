@@ -66,6 +66,19 @@ def _handle(message: dict[str, Any]) -> None:
         )
         if CHILD_SESSION:
             instructions += " This is a JAM child session; mutating campaign tools are intentionally hidden."
+        else:
+            instructions += (
+                " After successful start/resume, verify jam_status with the returned campaign id. Unless declined, "
+                "use the host automation tool to create/reuse a quiet five-minute heartbeat in the original invoking "
+                "task, preserving existing cadence and notification preferences. Bind it to this exact campaign and "
+                "state store. Check status and controller liveness; return saved reports or actionable failures/input "
+                "requests in that task. Stay quiet on unchanged/non-actionable progress. Keep monitoring graceful "
+                "pause/stop until the episode ends, then pause the heartbeat when autonomous work ends. Monitoring "
+                "must not execute or resume campaign work. Verify scheduling succeeded before promising follow-up; "
+                "if unavailable, disclose this and provide an exact status command without substituting a cron job. "
+                "If already finished, report results directly. Full follow-up workflow: "
+                + str(PLUGIN_ROOT / "skills/jam-mode/references/campaign-follow-up.md")
+            )
         _result(
             request_id,
             {

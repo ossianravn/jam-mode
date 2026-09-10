@@ -44,7 +44,7 @@ Default to:
 - child Ultra disabled unless explicitly requested
 - bounded episode and elapsed-time limits
 
-Use `jam_start_campaign` after the required objective and workspace are present and any elevated-work boundaries are explicit. Starting a campaign is a state-changing action. Report its campaign id and current state; do not also perform the campaign task in the invoking thread.
+Use `jam_start_campaign` after the required objective and workspace are present and any elevated-work boundaries are explicit. Starting a campaign is a state-changing action. After a successful start, verify its status and arrange follow-up in the invoking task using [campaign-follow-up.md](references/campaign-follow-up.md) before reporting the launch as handled. Report the campaign id, current state, and whether follow-up was actually scheduled. The invoking task owns monitoring and returning results; the controller owns campaign execution.
 
 ## Profile guidance
 
@@ -68,7 +68,7 @@ Use the MCP tools as follows:
 - `jam_refresh_campaign_routing`: revalidate and rematerialize a paused campaign's current roster without changing its overrides.
 - `jam_list_campaigns`: find campaign ids and prior campaigns.
 - `jam_pause_after_current`: graceful stop-after-current. Never describe this as cancelling the active episode.
-- `jam_resume_campaign`: append optional guidance, then run a fresh context-review and planning pass. Do not blindly reuse a prompt generated before the pause.
+- `jam_resume_campaign`: append optional guidance, then run a fresh context-review and planning pass. Do not blindly reuse a prompt generated before the pause. After success, restore or reuse the campaign's follow-up according to [campaign-follow-up.md](references/campaign-follow-up.md).
 - `jam_stop_campaign`: stop autonomous continuation after the current episode, if one is active; an explicit resume can reopen the campaign later.
 - `jam_add_memory_path`: add an existing local file or directory to future context reviews.
 - `jam_campaign_log` and `jam_doctor`: diagnose setup or controller failures.

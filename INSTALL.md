@@ -158,7 +158,7 @@ Native Windows:
 .\plugins\jam-mode\scripts\install-windows.ps1
 ```
 
-The installer refreshes the plugin source while preserving campaign data and existing routing settings. In current Codex releases, choose **Refresh** for JAM Mode under **Settings > Plugins** afterward so Codex rebuilds its plugin cache. On first use, JAM migrates the SQLite database in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 campaigns receive the 0.3 routing and telemetry columns.
+The installer refreshes the plugin source while preserving campaign data and existing routing settings. Native Windows installs write an absolute Python launcher and a fresh plugin build version before installation, keeping that configuration separate from older or generic cached packages. The installer reinstalls the plugin when the CLI supports it; otherwise choose **Refresh** for JAM Mode under **Settings > Plugins**. Start a new conversation to load the updated tools. On first use, JAM migrates the SQLite database in place. Version 0.1 research handoffs remain unchanged on disk and are normalized when read. Version 0.2 campaigns receive the 0.3 routing and telemetry columns.
 
 Restart Codex Desktop and begin a new Desktop/CLI conversation after the upgrade.
 

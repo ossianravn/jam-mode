@@ -22,7 +22,8 @@ TOOLS: list[dict[str, Any]] = [
             "Create a bounded, persistent JAM campaign for research, engineering, review, documentation, "
             "planning, data, operations, content, or mixed work. A conservative local-workspace boundary is "
             "inferred when none is supplied; explicit boundaries are required for network access. One top-level "
-            "episode runs at a time and each episode adapts its task profile and agent strategy."
+            "episode runs at a time and each episode adapts its task profile and agent strategy. "
+            "After success, arrange campaign follow-up in the invoking task as described in the server instructions."
         ),
         _schema(
             {
@@ -194,7 +195,10 @@ TOOLS: list[dict[str, Any]] = [
     _tool(
         "jam_resume_campaign",
         "Resume JAM campaign",
-        "Resume a paused/finished campaign by running a fresh context review and planning pass before any new session.",
+        (
+            "Resume a paused/finished campaign with a fresh context review and planning pass. After success, "
+            "restore or reuse its follow-up heartbeat in the original invoking task per the server instructions."
+        ),
         _schema(
             {
                 **CAMPAIGN_ID_ARG,

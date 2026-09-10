@@ -95,6 +95,14 @@ $McpJson = ($McpConfig | ConvertTo-Json -Depth 8) + [Environment]::NewLine
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText((Join-Path $PluginRoot ".mcp.json"), $McpJson, $Utf8NoBom)
 
+# Host-specific launch settings must not reuse the generic package's cache key.
+# A fresh build suffix also makes repeated installs pick up changed source files.
+$ManifestPath = Join-Path $PluginRoot ".codex-plugin\plugin.json"
+$Manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+$BaseVersion = $Manifest.version.Split('+')[0]
+$Manifest.version = "$BaseVersion+codex.$([DateTime]::UtcNow.ToString('yyyyMMddHHmmssfffffff'))"
+[System.IO.File]::WriteAllText($ManifestPath, ($Manifest | ConvertTo-Json -Depth 16) + [Environment]::NewLine, $Utf8NoBom)
+
 # Generate only JAM-prefixed custom agents. Campaign start/resume performs the
 # live account-specific model catalog validation.
 $RoutingCode = @'

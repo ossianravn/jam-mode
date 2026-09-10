@@ -358,6 +358,8 @@ Explicit boundaries are required when `--network` is requested and should be sup
 
 ## From Codex Desktop
 
+After a successful start or resume, JAM's agent instructions require the invoking task to arrange a quiet heartbeat, normally every five minutes, using Desktop's automation tool. It returns completed reports, failures, or input requests to that task and pauses itself when autonomous work ends. Existing campaign monitors are reused. The agent confirms whether scheduling succeeded; if automation is unavailable or declined, it provides the campaign's status command. The controller continues to own episode execution. See the [follow-up workflow](plugins/jam-mode/skills/jam-mode/references/campaign-follow-up.md).
+
 ```text
 @JAM Mode Start a balanced adaptive workspace-write campaign for this repository.
 

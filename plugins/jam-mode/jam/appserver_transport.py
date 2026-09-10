@@ -54,6 +54,7 @@ class AppServerTransport:
                 errors="replace",
                 bufsize=1,
                 env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
             if self.process.stdin is None or self.process.stdout is None:
                 raise AppServerError("Unable to open app-server stdio pipes.")

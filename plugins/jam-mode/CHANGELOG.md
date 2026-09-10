@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Require the invoking agent to arrange quiet campaign follow-up after successful start/resume when host automation is available, return reports or actionable issues to the original task, and pause monitoring when autonomous work ends. Document reuse, notification preferences, and unavailable-host behavior in the skill and MCP instructions.
+
+- Hide Windows consoles for Codex App Server and diagnostic subprocesses, including when launched by a detached controller.
+- Give each native Windows installation a fresh plugin cache version after writing its Python launcher configuration, so refreshed caches do not reuse the generic package's launch settings.
 - Add campaign-level harness selection for Codex, Claude Code, GitHub Copilot CLI, and OpenCode, preserved across resume. Existing campaigns default to Codex.
 - Add experimental signed-in native adapters with version/capability gates, native contribution evidence, scoped tool permissions, and bounded process cleanup. Live account-backed campaigns remain unverified; see `docs/harnesses.md` in the marketplace repository for compatibility limits.
 - Add CLI `harnesses`, `--harness` on start/models/doctor, and matching MCP inspection and selection. Keep Codex routing defaults and automatic memories specific to Codex campaigns.

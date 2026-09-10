@@ -98,6 +98,7 @@ def doctor() -> dict[str, Any]:
                 text=True,
                 timeout=20,
                 check=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
             checks.append(
                 {
@@ -115,6 +116,7 @@ def doctor() -> dict[str, Any]:
                 text=True,
                 timeout=20,
                 check=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
             checks.append(
                 {
